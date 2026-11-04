@@ -1,6 +1,6 @@
 # LibLM portal — v1 design (draft)
 
-Status: working draft · Date: 2026-11-04 · Companion to `platform/requirements.md`, the claimset specification (v0.35), the lab record specification (v0.15) and the revision specification (v0.3)
+Status: working draft · Date: 2026-11-04 · Companion to `platform/requirements.md`, the claimset specification (v0.36), the lab record specification (v0.15) and the revision specification (v0.4)
 
 This document fixes what the first version of the portal does, how it is built and what it leaves for later versions. Requirements are cited by their `PLT-` IDs.
 
@@ -75,7 +75,7 @@ data/
 7. The registry's checks run on the PR (§6). If they pass, the bot merges and tags; publication follows (§5.3). If they fail, the PR is closed with the reasons. The ID is not reused.
 8. `GET /api/submissions/{id}` reports the state at every step (`pending`, `confirmed`, `published`, `refused`, `expired`) and which guarantors have confirmed, never the content. The ID is unguessable; consent links are shown only in the response to the submission, and only their hashes are stored. Closed submissions are forgotten 14 days after their window ends.
 
-In v1 every guarantor is a person with an ORCID iD: a submission naming an organisation guarantor is refused until organisations can confirm (PLT-3).
+A claimset has exactly one guarantor: the main author, the person to contact, a person with an ORCID iD, who submits it (claimset spec v0.36). So a submission has one consent link; the validator refuses a second guarantor and organisations in any position but conversion guarantor. The API takes native claimsets only: converted claimsets are published by the conversion service, whose conversion guarantor (a person or an organisation) answers for them.
 
 Corrections (PLT-23) go through the same flow, with `paper.id` naming the existing claimset. Revisions with responses wait for v2.
 

@@ -80,22 +80,10 @@ def check(path):
 
 
 def guarantors(doc):
-    """[(orcid, name)] of the people who must confirm: human guarantors (and a converted paper's human conversion
-    guarantor). Raises SubmissionError for an organisation guarantor, which v1 cannot ask for consent yet."""
-    out = []
-    for c in doc.get("contributors") or []:
-        if not isinstance(c, dict):
-            continue
-        positions = set(c.get("positions") or [])
-        if not positions & {"guarantor", "conversion_guarantor"}:
-            continue
-        if c.get("type") != "human":
-            raise SubmissionError(f"{c.get('id')}: an organisation guarantor cannot yet confirm consent on LibLM; "
-                                  f"name a person (with an ORCID iD) as guarantor")
-        out.append((c["orcid"], c.get("name")))
-    if not out:
-        raise SubmissionError("the submission names no guarantor with an ORCID iD")
-    return sorted(set(out))
+    """[(orcid, name)] of the person who must confirm: the guarantor, the main author, who submits (claimset spec
+    v0.36). The validator has checked that it is one person with an ORCID iD (rules 14, 16)."""
+    return sorted({(c["orcid"], c.get("name")) for c in doc.get("contributors") or []
+                   if isinstance(c, dict) and "guarantor" in (c.get("positions") or [])})
 
 
 def new_id():
@@ -131,6 +119,10 @@ def receive(conn, upload, *, submissions_dir, base_url, client_ip=None, now=None
                               warnings=result.warnings)
     doc = result.doc
     paper = doc["paper"]
+    if paper.get("origin") == "converted":
+        raise SubmissionError("converted claimsets are published by LibLM's conversion service, which answers for "
+                              "them as conversion guarantor; this API takes native claimsets, submitted by their "
+                              "guarantor")
     people = guarantors(doc)
     kind, target = "new", None
     if "id" in paper:
