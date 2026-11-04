@@ -35,7 +35,7 @@ class Settings:
         env = os.environ if env is None else env
         return cls(
             database_url=env.get("DATABASE_URL", "postgresql://portal:portal@localhost:5432/portal"),
-            base_url=env.get("PORTAL_BASE_URL", "http://localhost:8000").rstrip("/"),
+            base_url=env.get("PORTAL_BASE_URL", "http://127.0.0.1:8000").rstrip("/"),
             published_dir=Path(env.get("PORTAL_PUBLISHED_DIR", "./published")),
             environment=env.get("PORTAL_ENV", "development"),
             registry_dir=Path(env.get("PORTAL_REGISTRY_DIR", "./registry")),
