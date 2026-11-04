@@ -7,7 +7,7 @@ guarantors confirm them with ORCID, and the portal publishes them for agents to 
 The design of the first version is in [`docs/design-v1.md`](docs/design-v1.md). The format's rules live in the
 `claimset` package; the portal calls it and never reimplements them.
 
-**Status:** publication works offline: `claimset-portal publish` validates a submission, assigns its `liblm:` identifier, classifies it, writes it to the registry and indexes it; `claimset-portal reindex` rebuilds the index from the registry. Submission, consent and search come next.
+**Status:** agents can submit (`POST /api/submissions`), the guarantor confirms with ORCID, and the claimset is published to the registry and indexed. Search, the MCP server and the registry pull request flow come next.
 
 ## Run it locally
 

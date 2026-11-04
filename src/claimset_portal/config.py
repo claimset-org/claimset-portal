@@ -1,7 +1,7 @@
 """Settings, read from the environment. Secrets live only in the environment, never in the repository."""
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -24,6 +24,11 @@ class Settings:
     #: The name and address the registry's commits are made under.
     git_name: str
     git_email: str
+    #: ORCID: https://sandbox.orcid.org for testing, https://orcid.org in production.
+    orcid_base: str = "https://sandbox.orcid.org"
+    orcid_client_id: str = ""
+    #: Secret: from the environment only.
+    orcid_client_secret: str = field(default="", repr=False)
 
     @classmethod
     def from_env(cls, env=None):
@@ -38,4 +43,7 @@ class Settings:
             classifier_url=env.get("PORTAL_CLASSIFIER_URL", "http://localhost:8001"),
             git_name=env.get("PORTAL_GIT_NAME", "LibLM"),
             git_email=env.get("PORTAL_GIT_EMAIL", "registry@liblm.invalid"),
+            orcid_base=env.get("ORCID_BASE", "https://sandbox.orcid.org").rstrip("/"),
+            orcid_client_id=env.get("ORCID_CLIENT_ID", ""),
+            orcid_client_secret=env.get("ORCID_CLIENT_SECRET", ""),
         )

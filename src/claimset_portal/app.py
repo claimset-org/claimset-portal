@@ -15,12 +15,13 @@ from pathlib import Path
 
 import claimset
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from starlette.concurrency import run_in_threadpool
 
-from . import __version__, submissions
+from . import __version__, consent, pages, submissions, worker
 from .config import Settings
 from .db import make_pool
+from .orcid import OrcidClient, OrcidError
 
 log = logging.getLogger("claimset_portal")
 
@@ -55,16 +56,40 @@ def _error(status, message, errors=(), warnings=()):
     return JSONResponse({"error": message, "errors": list(errors), "warnings": list(warnings)}, status_code=status)
 
 
-def create_app(settings=None, pool=None, run_expiry=True):
-    """The app. `pool` may be given (tests); otherwise one is made from the settings and opened on startup."""
+def _publisher(settings):
+    """The registry, file store and classifier publication uses."""
+    from .classify import HttpClassifier
+    from .registry import Registry
+    from .storage import FileStore
+    registry = Registry(settings.registry_dir, settings.git_name, settings.git_email)
+    if not (settings.registry_dir / ".git").exists():
+        registry.init()
+    return {"registry": registry, "store": FileStore(settings.published_dir, settings.base_url),
+            "classifier": HttpClassifier(settings.classifier_url)}
+
+
+def create_app(settings=None, pool=None, run_expiry=True, orcid=None, publisher=None):
+    """The app. `pool`, `orcid` (an ORCID client) and `publisher` ({registry, store, classifier}) may be given, as
+    tests do; otherwise they are made from the settings."""
     settings = settings or Settings.from_env()
     own_pool = pool is None
     pool = pool or make_pool(settings.database_url, min_size=1, max_size=10)
     uploads = settings.submissions_dir / "incoming"
+    orcid = orcid or OrcidClient(settings.orcid_base, settings.orcid_client_id, settings.orcid_client_secret,
+                                 f"{settings.base_url}/consent/callback")
+    publisher_ctx = {}
+
+    def publish_now():
+        if not publisher_ctx:
+            publisher_ctx.update(publisher or _publisher(settings))
+        with pool.connection() as conn:
+            return worker.publish_confirmed(conn, settings=settings, **publisher_ctx)
 
     def expire_now():
         with pool.connection() as conn:
-            return submissions.expire(conn, settings.submissions_dir)
+            expired = submissions.expire(conn, settings.submissions_dir)
+        publish_now()                                       # confirmed submissions left by a restart or a failure
+        return expired
 
     async def expiry_loop():
         while True:
@@ -155,6 +180,58 @@ def create_app(settings=None, pool=None, run_expiry=True):
             return _error(exc.status, str(exc), exc.errors, exc.warnings)
         finally:
             path.unlink(missing_ok=True)
+
+    @app.get("/consent/callback", response_class=HTMLResponse, include_in_schema=False)
+    async def consent_callback(state: str = "", code: str = "", error: str = ""):
+        """ORCID returns here after sign-in."""
+        if error or not code or not state:
+            return HTMLResponse(pages.message("Sign-in cancelled", "ORCID sign-in was not completed. Open the "
+                                              "consent link again to retry."), status_code=400)
+        try:
+            who, _ = await run_in_threadpool(orcid.exchange, code)
+        except OrcidError as exc:
+            return HTMLResponse(pages.message("Sign-in failed", str(exc)), status_code=502)
+
+        def work():
+            with pool.connection() as conn:
+                return consent.complete(conn, state, who)
+        outcome = await run_in_threadpool(work)
+        status_url = f"{settings.base_url}/api/submissions/{outcome.submission}" if outcome.submission else None
+        if outcome.result != "confirmed":
+            code_ = {"wrong_person": 403, "limit": 429, "not_pending": 409}.get(outcome.result, 400)
+            return HTMLResponse(pages.message("Not confirmed", outcome.message, status_url), status_code=code_)
+        try:
+            done = dict(await run_in_threadpool(publish_now))
+        except Exception:  # noqa: BLE001 - the periodic loop retries; the guarantor has confirmed either way
+            log.exception("publishing after consent failed")
+            done = {}
+        published = done.get(outcome.submission)
+        text = (f"Thank you. The claimset is published as {published}." if published else
+                "Thank you. You have confirmed the claimset; it will be published shortly.")
+        return pages.message("Confirmed", text, status_url)
+
+    @app.get("/consent/{token}", response_class=HTMLResponse, include_in_schema=False)
+    def consent_page(token: str):
+        """The page a guarantor opens from their consent link."""
+        with pool.connection() as conn:
+            ctx = consent.page_context(conn, token, settings.submissions_dir)
+        if ctx is None:
+            return HTMLResponse(pages.message("Unknown link", "This consent link is not valid. Links expire with "
+                                              "their submission, after 48 hours."), status_code=404)
+        status_url = f"{settings.base_url}/api/submissions/{ctx['submission']}"
+        return pages.consent(ctx, f"{settings.base_url}/consent/{token}/start", status_url)
+
+    @app.get("/consent/{token}/start", include_in_schema=False)
+    def consent_start(token: str):
+        """Begin ORCID sign-in for a consent link."""
+        if not orcid.configured:
+            return HTMLResponse(pages.message("Not available", "ORCID sign-in is not configured on this server."),
+                                status_code=503)
+        with pool.connection() as conn:
+            state = consent.start(conn, token)
+        if state is None:
+            return RedirectResponse(f"{settings.base_url}/consent/{token}", status_code=303)
+        return RedirectResponse(orcid.authorize_url(state), status_code=303)
 
     @app.get("/api/submissions/{sub_id}", tags=["submissions"])
     def submission_status(sub_id: str):
