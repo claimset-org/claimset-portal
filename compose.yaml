@@ -1,0 +1,59 @@
+# The whole portal on one machine: the app, PostgreSQL with pgvector, and Caddy (HTTPS and static files).
+#
+#   cp .env.example .env      # then edit it
+#   docker compose up -d --build
+#
+# With PORTAL_DOMAIN=localhost, Caddy serves https://localhost with its own local certificate.
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: portal
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: portal
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U portal -d portal"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    # No published port: the database is reachable only from the app, on the compose network.
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://portal:${POSTGRES_PASSWORD}@db:5432/portal
+      PORTAL_BASE_URL: https://${PORTAL_DOMAIN:-localhost}
+      PORTAL_PUBLISHED_DIR: /srv/published
+      PORTAL_ENV: ${PORTAL_ENV:-development}
+    volumes:
+      - published:/srv/published
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      PORTAL_DOMAIN: ${PORTAL_DOMAIN:-localhost}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - published:/srv/published:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  db:
+  published:
+  caddy_data:
+  caddy_config:
