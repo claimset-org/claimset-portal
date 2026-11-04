@@ -224,7 +224,7 @@ Changed by this design: PLT-1 and PLT-3 to PLT-5 (accounts and agent tokens) are
 
 ## 15. Open questions
 
-1. **Domain.** Settled: entrylib.org. The production ORCID client is registered with the redirect URI https://entrylib.org/consent/callback.
+1. **Domain.** Settled: entrylib.org. The production ORCID client will use the redirect URI https://entrylib.org/consent/callback.
 2. **Paid accounts.** Publishing stays free. Candidates: higher read quotas on the API and MCP; higher submission quotas for verified organisations; private pre-submission checks, including a preview of the v2 reviewer's comments; bulk export.
 3. **Several guarantors.** Whether 48 hours is enough when guarantors are in different time zones, or whether the window restarts when the first confirms.
 4. **ORCID works.** Writing works to ORCID records needs ORCID membership. Until v3 brings DOIs and DataCite auto-update, guarantors add claimsets to their records by hand; the consent page says how.
