@@ -24,7 +24,9 @@ services:
     # No published port: the database is reachable only from the app, on the compose network.
 
   classifier:
-    build: ./classifier
+    build:
+      context: ./classifier
+      secrets: [openalex_api_key]
     restart: unless-stopped
     # No published port: reachable only from the app.
 
@@ -64,6 +66,10 @@ services:
       - published:/srv/published:ro
       - caddy_data:/data
       - caddy_config:/config
+
+secrets:
+  openalex_api_key:
+    environment: OPENALEX_API_KEY      # set in .env; used only when the classifier image is built
 
 volumes:
   db:

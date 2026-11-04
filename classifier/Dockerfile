@@ -1,5 +1,6 @@
 # The classifier service: OpenAlex's open topic model, CPU only. The model and OpenAlex's topic list are fetched
-# at build, and the build fails if a model label matches no OpenAlex topic.
+# at build, and the build fails if a model label matches no OpenAlex topic. Build with the secret
+# openalex_api_key (an OpenAlex API key), e.g. docker build --secret id=openalex_api_key,env=OPENALEX_API_KEY .
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 CLASSIFIER_DIR=/opt/classifier \
@@ -11,7 +12,8 @@ COPY requirements.txt ./
 RUN pip install -r requirements.txt
 COPY labels.py download.py server.py ./
 ARG CLASSIFIER_MODEL_REVISION=main
-RUN CLASSIFIER_MODEL_REVISION=${CLASSIFIER_MODEL_REVISION} python download.py \
+RUN --mount=type=secret,id=openalex_api_key \
+    CLASSIFIER_MODEL_REVISION=${CLASSIFIER_MODEL_REVISION} python download.py \
  && chown -R classifier /opt/classifier
 
 USER classifier

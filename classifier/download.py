@@ -6,6 +6,9 @@ Writes to /opt/classifier:
   about.json      {"classifier": "<model id>@<commit>", "topics_fetched": "<date>"}
 
 The build fails if any model label matches no OpenAlex topic, so a mismatch is found before deployment.
+
+OpenAlex requires an API key (a free one is enough: openalex.org/settings/api). It is passed as a Docker build
+secret, `openalex_api_key`, so it is never stored in the image; OPENALEX_API_KEY is read when run outside Docker.
 """
 
 import datetime as dt
@@ -23,12 +26,22 @@ MODEL = os.environ.get("CLASSIFIER_MODEL",
                        "OpenAlex/bert-base-multilingual-cased-finetuned-openalex-topic-classification-title-abstract")
 REVISION = os.environ.get("CLASSIFIER_MODEL_REVISION", "main")
 OUT = Path(os.environ.get("CLASSIFIER_DIR", "/opt/classifier"))
+SECRET = Path("/run/secrets/openalex_api_key")
+
+
+def api_key():
+    key = SECRET.read_text().strip() if SECRET.exists() else os.environ.get("OPENALEX_API_KEY", "").strip()
+    if not key:
+        raise SystemExit("an OpenAlex API key is needed to fetch the topic list: pass the build secret "
+                         "openalex_api_key (or set OPENALEX_API_KEY); a free key is at openalex.org/settings/api")
+    return key
 
 
 def openalex_topics():
-    topics, cursor = [], "*"
+    topics, cursor, key = [], "*", api_key()
     while cursor:
-        q = urllib.parse.urlencode({"per-page": 200, "cursor": cursor, "select": "id,display_name,subfield"})
+        q = urllib.parse.urlencode({"per-page": 200, "cursor": cursor, "select": "id,display_name,subfield",
+                                    "api_key": key})
         with urllib.request.urlopen(f"https://api.openalex.org/topics?{q}", timeout=60) as res:
             page = json.loads(res.read())
         topics += page["results"]

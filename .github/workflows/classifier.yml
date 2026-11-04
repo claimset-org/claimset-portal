@@ -17,7 +17,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: docker build -t liblm-classifier classifier
+      - name: Build (needs the repository secret OPENALEX_API_KEY)
+        env:
+          OPENALEX_API_KEY: ${{ secrets.OPENALEX_API_KEY }}
+        run: docker build --secret id=openalex_api_key,env=OPENALEX_API_KEY -t liblm-classifier classifier
       - name: Classify a sample text
         run: |
           docker run -d --name clf -p 8001:8001 liblm-classifier
