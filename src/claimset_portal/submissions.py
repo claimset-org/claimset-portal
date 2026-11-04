@@ -127,9 +127,14 @@ def receive(conn, upload, *, submissions_dir, base_url, client_ip=None, now=None
     kind, target = "new", None
     if "id" in paper:
         kind, target = "correction", paper["id"]
-        row = conn.execute("SELECT current_version FROM papers WHERE concept_id = %s", (target,)).fetchone()
+        row = conn.execute("SELECT v.file FROM papers p JOIN versions v ON v.concept_id = p.concept_id"
+                           " AND v.version = p.current_version WHERE p.concept_id = %s", (target,)).fetchone()
         if row is None:
             raise SubmissionError(f"the correction names {target}, which is not published on LibLM")
+        current = guarantors(row[0])
+        if current and [o for o, _ in people] != [o for o, _ in current]:
+            raise SubmissionError(f"a correction is submitted by the guarantor of the current version of {target} "
+                                  f"({current[0][0]}); this one names {people[0][0]}", status=403)
 
     sub_id = new_id()
     suffix = ".zip" if zipfile.is_zipfile(upload) else ".json"
