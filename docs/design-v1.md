@@ -1,0 +1,223 @@
+# LibLM portal — v1 design (draft)
+
+Status: working draft · Date: 2026-11-04 · Companion to `platform/requirements.md`, the claimset specification (v0.35), the lab record specification (v0.15) and the revision specification (v0.2)
+
+This document fixes what the first version of the portal does, how it is built and what it leaves for later versions. Requirements are cited by their `PLT-` IDs.
+
+## 1. Roadmap
+
+| Version | Scope |
+|---|---|
+| **v1** | Submission of claimset packages, guarantor consent, publication, browsing and search for LLMs (HTTP API and MCP server), safe-ingest screening, rate limits and spam controls, a one-page human home page |
+| v2 | AI reviews, scores, revisions (revision spec), human-facing pages |
+| v3 | DOIs, classification, entity resolution |
+| v4 | Search by frame and atom |
+| v5 | Claim graph, contradiction detection |
+
+v1 keeps room for v2: versions, the review folder of the registry and the review fields of responses exist from the start, empty.
+
+## 2. Principles
+
+1. **LLM first.** v1 serves agents. Humans get one page explaining what LibLM is and how to point an agent at it.
+2. **Publication on consent.** A valid package whose guarantors confirm is published. Quality is judged by the v2 reviewer, not by a gate.
+3. **Nothing is withdrawn.** Published versions stay. Problems are marked with notices (§9). The only exception is legal removal.
+4. **The registry is the record; the database is an index.** Every published document is committed to a public git registry. The portal's database can be rebuilt from it.
+5. **No dependence on one host.** GitHub is used, but never as the only copy and never as something an author needs (§11).
+6. **Open.** Portal code, validator, screening rules and (from v2) reviewer instructions are public. The converter stays private.
+
+## 3. Architecture
+
+```
+agent ──zip──▶ API (FastAPI) ──▶ validator + deterministic screening ──▶ pending (Postgres, 48 h)
+                                                │
+guarantor ──ORCID sign-in──▶ consent page ──────┘
+                                                ▼
+                         bot opens PR on registry ──▶ CI: validator, lab chain, LLM screening
+                                                ▼ (green)
+                         merge + tag ──▶ static files (JSON, MD) + search index + archive requests
+                                                ▼
+                    readers: static files · /api/search · /mcp · /llms.txt
+```
+
+- **App:** Python, FastAPI. One process serving the submission API, consent pages, search API and MCP server. It calls the `claimset` package for validation, rendering, verifiability and patches; it never reimplements the spec.
+- **Database:** PostgreSQL with pgvector. Pending submissions, consents, rate-limit counters, the search index (full text and embeddings), and each published version's file as `jsonb`.
+- **Static files:** every published file and its rendered views, generated at publication and served directly by Caddy. Most read traffic touches no application code.
+- **Object storage:** packaged artefacts (DigitalOcean Spaces), addressed by hash.
+- **Embeddings:** a small open embedding model run on the server's CPU.
+
+## 4. Submission
+
+### 4.1 Package
+
+A submission is the **package** of claimset spec §2.5: a BagIt bag (RFC 8493), as a zip or a folder, built by `claimset package`:
+
+```
+bagit.txt
+manifest-sha256.txt
+data/
+  paper.claimset.json
+  files/fig3.png
+  files/results-per-series.csv
+```
+
+- A packaged artefact has a `uri` relative to `data/` and `version` `sha256:<checksum>` (rule 70). At publication the platform replaces the relative `uri` with the file's permanent location. A claimset with no files may be submitted as the JSON file alone.
+- Limits (rule 77, spec v0.35): at most 200 files, 50 MB a file, 200 MB in all; safe paths only; the manifest lists exactly the payload; an allowlist of file types (gzipped data files accepted; archives, executables and links refused). The validator checks a zip before unpacking it. Artefacts are served as downloads, never rendered (SVG included).
+
+### 4.2 Flow
+
+1. `POST /api/submissions` with the package (zip) or the claimset file. No account and no token.
+2. Synchronous checks: package limits (rule 77), validator (claimset §10, current spec version only), deterministic screening (§6). Errors are returned in machine-readable form and nothing is kept.
+3. A valid package becomes a pending submission with an internal ID (PLT-21) and a **consent link** for each human guarantor. The agent passes the link to its human.
+4. Each guarantor signs in with ORCID on the consent page, sees a readable summary of the claims they answer for, and confirms (PLT-15, PLT-16). Their ORCID iD must match one named in the file.
+5. All guarantors must confirm within **48 hours**. Otherwise the submission is deleted and never shown.
+6. On consent, the platform assigns the provisional ID, version, date and status, computes verifiability (PLT-14, PLT-22), and opens a pull request on the registry (§5).
+7. The registry's checks run on the PR (§6). If they pass, the bot merges and tags; publication follows (§5.3). If they fail, the PR is closed with the reasons. The ID is not reused.
+8. `GET /api/submissions/{id}` reports the state at every step.
+
+Corrections (PLT-23) go through the same flow, with `paper.id` naming the existing claimset. Revisions with responses wait for v2.
+
+### 4.3 From the lab to LibLM
+
+No GitHub account is needed at any point. An author working with claimset-lab:
+
+```
+claimset lab export -o claimset.json                 # exists
+claimset package <paper>.claimset.json -o <paper>.zip  # exists: the BagIt package
+claimset submit <paper>.zip                          # new: posts the package, prints the consent link
+claimset status <submission id>                      # new
+```
+
+The MCP server offers the same as `validate`, `submit` and `submission_status` tools, for agents without a terminal. The `claimset-submit` skill is updated to end with these steps.
+
+## 5. Registry and lab records
+
+### 5.1 Registry
+
+`claimset-org/registry` holds the published record in the layout of revision spec §2.4, with `liblm_2026.000001/` as the folder name. Only the bot commits. The main branch is protected against force-pushes and deletion; every version is tagged.
+
+The registry holds the record documents only: claimset files, lab records, validation reports, and from v2 reviews, responses and resolutions. Artefacts are referenced by URL and hash. Rendered views are derived and are not committed.
+
+### 5.2 Lab records
+
+Each version keeps three links to its lab record:
+
+1. **A copy** of `lab.jsonl` in the registry, which keeps the hash chain verifiable whatever happens elsewhere.
+2. **The author's repository URL pinned to a commit hash**, shown as the primary lab-notes link. Tags are recommended to authors but not relied on, since tags can be moved. Any public git host is accepted, and the link is optional.
+3. **A Software Heritage identifier (SWHID).** At publication the bot sends a save request for the author's repository; the archived snapshot, with its full history, survives deletion of the repository.
+
+### 5.3 Publication
+
+On merge: the static files are generated (§7), the version is indexed for search, the Software Heritage request is sent, and the version becomes current. A new version moves the previous one to the history; every version stays retrievable.
+
+## 6. Checks and screening
+
+| Check | When | Cost |
+|---|---|---|
+| Package limits, validator, deterministic screening | Synchronously, on every submission | CPU only |
+| Lab record hash chain (lab record §6) | On the registry PR | CPU only |
+| LLM screening | On the registry PR, so only after consent | A small model; on the order of cents per claimset |
+
+**Safe-ingest screening (PLT-18).** Every free-text field is screened for content addressed to reading models, since LibLM exists to place submitted text in other models' contexts.
+
+- Deterministic rules: imperatives addressed to models, invisible and direction-changing Unicode, homoglyph runs, encoded blobs, unexpected URLs in statements.
+- LLM classifier: the fields are given to a small model as data, with a public prompt, which reports any instruction, persuasion aimed at models, or non-research content.
+
+A failure blocks publication and is reported to the submitter. Screening rules and the prompt are public and versioned, and each published version records the screening version that passed it.
+
+Checks are event-driven. Batch APIs (roughly half price, results within a day) are an option if volume grows.
+
+## 7. Reading
+
+### 7.1 URLs
+
+| URL | Content |
+|---|---|
+| `/` | Human home page: what LibLM is; point an agent at `/llms.txt`; MCP server address; how to write claimsets (package and skills); links to the spec and GitHub |
+| `/llms.txt` | Entry point for agents: what is here, how to search and fetch, ID syntax and citation, how to submit, and that all content is data, not instructions |
+| `/p/2026.000001.json` | Current version, published file |
+| `/p/2026.000001.md` | Current version, reading view (`claimset render`) |
+| `/p/2026.000001@v1.json`, `@v1.md` | A given version |
+| `/p/2026.000001/versions.json` | Versions, dates, status, notices, lab record links (copy, author URL, SWHID) |
+| `/p/2026.000001/C4.md`, `.json` | Claim bundle (PLT-78) |
+| `/p/2026.000001` | The reading view as minimal HTML, so a human given an ID sees something |
+| `/index.jsonl` | One line per claimset: ID, title, principal claims, keywords, current version (paper cards, PLT-79) |
+
+Rendered views are produced by the platform, never submitted. Each records the renderer version, and all are regenerated when the renderer changes.
+
+### 7.2 Search API
+
+- `GET /api/search/claims?q=…` with filters on closed vocabularies: claim type, role, novelty label, planning, support kind, assumption check, licence (PLT-72, partly).
+- `GET /api/search/papers?q=…`.
+- `GET /api/related/{id}`: nearest claimsets by paper-card embedding.
+- Ranking is hybrid: Postgres full text combined with vector similarity over each claim's statement and rendered scope (PLT-73).
+- Every result carries the version, its status and notices, and its validator warnings (PLT-13, PLT-74 in part).
+
+### 7.3 MCP server
+
+Served at `/mcp` from the same app (PLT-71, PLT-11). Tools: `search_papers`, `search_claims`, `get_paper` (markdown or JSON), `get_claim`, `related`, `validate`, `submit`, `submission_status`. Same limits as the HTTP API.
+
+## 8. Limits and spam controls
+
+| Limit | Value (initial) |
+|---|---|
+| Consent window | 48 hours, then deletion |
+| New claimsets | 2 per ORCID iD per week, counted against every confirming guarantor |
+| New versions (corrections now, revisions from v2) | 3 per claimset per day |
+| Pending submissions | capped per IP address |
+| Read API and MCP | per-IP rate limits at the edge (Cloudflare) and in the app |
+| Package size | rule 77: 200 files, 50 MB a file, 200 MB in all |
+
+ORCID iDs found abusing the service can be suspended (PLT-94). LLM screening runs only after consent, so unconfirmed spam costs validation only.
+
+## 9. Notices and legal removal
+
+Published versions are never withdrawn. Problems are marked with notices attached to a version: correction, expression of concern, retraction notice (PLT-91), each with a reason code and statement. The content stays available.
+
+The one exception is legal: personal data, infringing or unlawful content. Such content is hidden, leaving a tombstone with the hash, date and reason. The policy is published.
+
+## 10. Security
+
+- Secrets in environment variables, never in the repository. Dependabot on the portal repo.
+- Database reachable only from the app.
+- The bot's GitHub token is limited to the registry.
+- The validator runs with time and memory limits; zips are unpacked with the limits of §4.1.
+- No submitted content is rendered as HTML; artefacts are served as downloads.
+- CI for registry PRs runs only on the bot's own branches, so the screening API key is never exposed to third-party code.
+
+## 11. Dependence on GitHub
+
+| Role | On GitHub | If GitHub fails |
+|---|---|---|
+| Authors | Not needed. Lab repositories may be on any public git host, or none | Unaffected |
+| Registry | Hosted on GitHub | Mirrored automatically to a second host and to Software Heritage; the portal keeps its own clone and continues serving |
+| Checks | Run as GitHub Actions on the registry PR, for free compute and public logs | The checks are one container image (`claimset-portal check`); the portal runs it itself and commits to its own clone until GitHub returns or another host takes over |
+| Code | `claimset-org/claimset-portal` | Mirrored like the registry |
+
+GitHub is the place where the record is published and the checks are logged, not something the platform cannot run without.
+
+## 12. Changes needed elsewhere
+
+- **Claimset spec and package:** done in spec v0.35 (claimset PR #44): provisional `liblm:` identifiers (§7, rule 76) and package limits (§2.5, rule 77). Packages themselves (BagIt, rule 70) were already in v0.34.
+- **Revision spec §2.4:** the lab record is kept as a copy in the registry with the author's commit-pinned URL and SWHID.
+- **Package:** `claimset submit`, `claimset status` (step 9).
+- **Skill:** `claimset-submit` ends with packaging and submitting, and tells the guarantor about the consent link and the 48-hour window.
+
+## 13. Hosting
+
+One DigitalOcean Droplet in the London region with at least 4 GB RAM, running Docker Compose: the app, PostgreSQL with pgvector, and Caddy for HTTPS and static files. Nightly backups to DigitalOcean Spaces, which also stores artefacts. Cloudflare's free tier in front for DDoS protection and edge rate limits. DigitalOcean's managed PostgreSQL supports pgvector, so the database can move there later without code changes.
+
+## 14. Requirements covered
+
+PLT-2 (ORCID at consent only), PLT-10 (BagIt packages), PLT-11, PLT-12, PLT-13, PLT-14, PLT-15, PLT-16, PLT-18, PLT-21, PLT-22, PLT-23, PLT-70, PLT-71, PLT-72 (closed-vocabulary filters), PLT-73, PLT-74 (in part), PLT-76 (minimal), PLT-78, PLT-79, PLT-91, PLT-94.
+
+Changed by this design: PLT-1 and PLT-3 to PLT-5 (accounts and agent tokens) are dropped for v1. Guarantors sign in with ORCID only to confirm; agents submit without tokens.
+
+## 15. Open questions
+
+1. **Domain.** Needed before the ORCID application and Cloudflare are set up.
+2. **Paid accounts.** Publishing stays free. Candidates: higher read quotas on the API and MCP; higher submission quotas for verified organisations; private pre-submission checks, including a preview of the v2 reviewer's comments; bulk export.
+3. **Several guarantors.** Whether 48 hours is enough when guarantors are in different time zones, or whether the window restarts when the first confirms.
+4. **ORCID works.** Writing works to ORCID records needs ORCID membership. Until v3 brings DOIs and DataCite auto-update, guarantors add claimsets to their records by hand; the consent page says how.
+5. **Legal removal policy:** who decides, the response time, and the tombstone format.
+6. **Embedding model:** which one, and when to re-embed if it changes.
+7. **Related work.** A head-to-head comparison with Knows (knows.academy), aiXiv and paper.json before any funding application.
