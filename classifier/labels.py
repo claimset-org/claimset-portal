@@ -33,29 +33,36 @@ def topic_id_of(label):
     return f"T{10000 + label_number(label)}"
 
 
+#: At most this share of the model's labels may name topics OpenAlex has since retired; more means the mapping is
+#: wrong, and the build fails.
+MAX_RETIRED_SHARE = 0.01
+
+
 def build_table(topics, labels):
-    """{model label: {"topic", "subfield"}} from OpenAlex topic records ({id, display_name, subfield: {id}}) and the
-    model's labels. Raises ValueError naming the labels whose topic OpenAlex does not have."""
+    """({model label: {"topic", "subfield"}}, [retired labels]) from OpenAlex topic records ({id, display_name,
+    subfield: {id}}) and the model's labels. A label whose topic OpenAlex no longer has is left out of the table,
+    and the classifier skips it. Raises ValueError when more than MAX_RETIRED_SHARE of the labels are left out."""
     by_id = {t["id"].rsplit("/", 1)[-1]: t for t in topics}
-    table, missing = {}, []
+    table, retired = {}, []
     for label in labels:
         topic = by_id.get(topic_id_of(label))
         if topic is None:
-            missing.append(label)
+            retired.append(label)
         else:
             table[label] = {"topic": short_id(topic["id"]), "subfield": short_id(topic["subfield"]["id"])}
-    if missing:
-        raise ValueError(f"{len(missing)} label(s) name a topic OpenAlex does not have, e.g. {missing[:3]}")
-    return table
+    if len(retired) > MAX_RETIRED_SHARE * len(labels):
+        raise ValueError(f"{len(retired)} of {len(labels)} label(s) name a topic OpenAlex does not have, "
+                         f"e.g. {retired[:3]}: the label-to-topic mapping is wrong")
+    return table, retired
 
 
 def classify(scored, table, max_topics=3):
-    """{subfield, topics} from the model's [(label, score)], best first: up to three topics, and the subfield of
-    the best one."""
-    topics = [table[label]["topic"] for label, _ in scored[:max_topics]]
-    if not topics:
-        raise ValueError("the model returned no labels")
-    return {"subfield": table[scored[0][0]]["subfield"], "topics": topics}
+    """{subfield, topics} from the model's [(label, score)], best first: up to three current topics, and the
+    subfield of the best one."""
+    known = [label for label, _ in scored if label in table]          # skip topics OpenAlex has retired
+    if not known:
+        raise ValueError("the model returned no label of a current OpenAlex topic")
+    return {"subfield": table[known[0]]["subfield"], "topics": [table[label]["topic"] for label in known[:max_topics]]}
 
 
 def model_input(title, abstract):

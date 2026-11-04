@@ -5,7 +5,8 @@ Writes to /opt/classifier:
   table.json      {model label: {topic, subfield}}
   about.json      {"classifier": "<model id>@<commit>", "topics_fetched": "<date>"}
 
-The build fails if any model label matches no OpenAlex topic, so a mismatch is found before deployment.
+Labels whose topic OpenAlex has retired are skipped and listed in about.json; the build fails if more
+than 1% are, which means the mapping is wrong.
 
 OpenAlex requires an API key (a free one is enough: openalex.org/settings/api). It is passed as a Docker build
 secret, `openalex_api_key`, so it is never stored in the image; OPENALEX_API_KEY is read when run outside Docker.
@@ -56,12 +57,14 @@ def main():
     config = json.loads((OUT / "model" / "config.json").read_text())
     labels = list(config["id2label"].values())
     topics = openalex_topics()
-    table = build_table(topics, labels)
+    table, retired = build_table(topics, labels)
     (OUT / "table.json").write_text(json.dumps(table, ensure_ascii=False))
     (OUT / "about.json").write_text(json.dumps({"classifier": f"{MODEL}@{commit}",
                                                 "topics_fetched": dt.date.today().isoformat(),
-                                                "labels": len(labels), "openalex_topics": len(topics)}))
-    print(f"{len(labels)} labels mapped to OpenAlex topics; model {MODEL}@{commit}")
+                                                "labels": len(labels), "openalex_topics": len(topics),
+                                                "retired_labels": retired}, ensure_ascii=False))
+    print(f"{len(table)} of {len(labels)} labels mapped to current OpenAlex topics; {len(retired)} retired "
+          f"topic(s) skipped: {retired}; model {MODEL}@{commit}")
 
 
 if __name__ == "__main__":

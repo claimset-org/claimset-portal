@@ -27,7 +27,8 @@ class TestLabels(unittest.TestCase):
         self.assertEqual(short_id("https://openalex.org/subfields/1803"), "openalex:subfields/1803")
 
     def test_table_and_classify(self):
-        table = build_table(TOPICS, LABELS)
+        table, retired = build_table(TOPICS, LABELS)
+        self.assertEqual(retired, [])
         out = classify([("2: Supply Chain Management", 0.6), ("1: Forecasting Economic Time Series", 0.3),
                         ("3: Viral Ecology", 0.05), ("1: Forecasting Economic Time Series", 0.01)], table)
         self.assertEqual(out, {"subfield": "openalex:subfields/1408",
@@ -35,10 +36,19 @@ class TestLabels(unittest.TestCase):
 
     def test_labels_match_topics_by_id_not_by_name(self):
         self.assertEqual(topic_id_of("2543: Mapping Groundwater Potential Zones Using GIS Techniques"), "T12543")
-        table = build_table(TOPICS, LABELS)
+        table, _ = build_table(TOPICS, LABELS)
         self.assertEqual(table["1: Forecasting Economic Time Series"]["topic"], "openalex:T10001")   # renamed
 
-    def test_a_label_whose_topic_is_missing_fails_the_build(self):
+    def test_retired_topics_are_skipped(self):
+        many = [{"id": f"https://openalex.org/T{10000 + i}", "display_name": f"Topic {i}",
+                 "subfield": {"id": f"https://openalex.org/subfields/{1000 + i % 7}"}} for i in range(1, 201)]
+        labels = [f"{i}: Old name {i}" for i in range(1, 201)] + ["250: A retired topic"]
+        table, retired = build_table(many, labels)
+        self.assertEqual(retired, ["250: A retired topic"])
+        out = classify([("250: A retired topic", 0.9), ("3: Old name 3", 0.05)], table)
+        self.assertEqual(out["topics"], ["openalex:T10003"])                 # the retired best label is skipped
+
+    def test_many_missing_topics_fail_the_build(self):
         with self.assertRaises(ValueError):
             build_table(TOPICS, LABELS + ["9: A Topic OpenAlex Does Not Have"])
 
