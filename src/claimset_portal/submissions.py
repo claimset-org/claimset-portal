@@ -80,21 +80,13 @@ def check(path):
 
 
 def guarantors(doc):
-    """[(orcid, name)] of the people who must confirm: human guarantors (and a converted paper's human conversion
-    guarantor). Raises SubmissionError for an organisation guarantor, which v1 cannot ask for consent yet."""
+    """[(orcid, name)] of the people who must confirm (claimset spec v0.36): the guarantor, the person who submits;
+    in a converted paper the conversion guarantor, and the guarantor if a source author has claimed it. The
+    validator has already checked that each is a person with an ORCID iD (rules 14, 16, 17)."""
     out = []
     for c in doc.get("contributors") or []:
-        if not isinstance(c, dict):
-            continue
-        positions = set(c.get("positions") or [])
-        if not positions & {"guarantor", "conversion_guarantor"}:
-            continue
-        if c.get("type") != "human":
-            raise SubmissionError(f"{c.get('id')}: an organisation guarantor cannot yet confirm consent on LibLM; "
-                                  f"name a person (with an ORCID iD) as guarantor")
-        out.append((c["orcid"], c.get("name")))
-    if not out:
-        raise SubmissionError("the submission names no guarantor with an ORCID iD")
+        if isinstance(c, dict) and set(c.get("positions") or []) & {"guarantor", "conversion_guarantor"}:
+            out.append((c["orcid"], c.get("name")))
     return sorted(set(out))
 
 

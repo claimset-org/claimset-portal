@@ -142,13 +142,21 @@ def test_package_limits_apply(client, tmp_path):
     assert r.status_code == 422 and any(e["rule"] == "77" for e in r.json()["errors"])
 
 
-def test_organisation_guarantor_is_refused(client):
+def test_one_guarantor_one_consent_link(client):
+    out = client.post("/api/submissions", content=body(example()), headers=JSON).json()
+    assert [c["orcid"] for c in out["consent"]] == ["0000-0000-0000-0000"]
+
+
+def test_organisation_or_second_guarantor_is_refused(client):
     doc = example()
-    doc["contributors"].append({"id": "P9", "type": "organisation", "name": "Example Ltd", "ror": "ror:00k4n6c32",
+    doc["contributors"].append({"id": "P9", "type": "organisation", "name": "Example Ltd", "positions": ["guarantor"]})
+    r = client.post("/api/submissions", content=body(doc), headers=JSON)
+    assert r.status_code == 422 and {"14", "16"} <= {e["rule"] for e in r.json()["errors"]}
+    doc = example()
+    doc["contributors"].append({"id": "P9", "type": "human", "name": "B. Colleague", "orcid": "0000-0000-0000-0003",
                                 "positions": ["guarantor"]})
     r = client.post("/api/submissions", content=body(doc), headers=JSON)
-    assert r.status_code == 422, r.text
-    assert "organisation guarantor" in r.json()["error"] or r.json()["errors"]
+    assert r.status_code == 422 and "16" in {e["rule"] for e in r.json()["errors"]}
 
 
 def test_correction_must_name_a_published_claimset(client):
