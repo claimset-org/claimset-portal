@@ -1,4 +1,5 @@
-# The whole portal on one machine: the app, PostgreSQL with pgvector, and Caddy (HTTPS and static files).
+# The whole portal on one machine: the app, PostgreSQL with pgvector, the classifier, and Caddy (HTTPS and
+# static files).
 #
 #   cp .env.example .env      # then edit it
 #   docker compose up -d --build
@@ -22,19 +23,31 @@ services:
       retries: 20
     # No published port: the database is reachable only from the app, on the compose network.
 
+  classifier:
+    build: ./classifier
+    restart: unless-stopped
+    # No published port: reachable only from the app.
+
   app:
     build: .
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
+      classifier:
+        condition: service_healthy
     environment:
       DATABASE_URL: postgresql://portal:${POSTGRES_PASSWORD}@db:5432/portal
       PORTAL_BASE_URL: https://${PORTAL_DOMAIN:-localhost}
       PORTAL_PUBLISHED_DIR: /srv/published
       PORTAL_ENV: ${PORTAL_ENV:-development}
+      PORTAL_REGISTRY_DIR: /srv/registry
+      PORTAL_CLASSIFIER_URL: http://classifier:8001
+      PORTAL_GIT_NAME: ${PORTAL_GIT_NAME:-LibLM}
+      PORTAL_GIT_EMAIL: ${PORTAL_GIT_EMAIL:-registry@liblm.invalid}
     volumes:
       - published:/srv/published
+      - registry:/srv/registry
 
   caddy:
     image: caddy:2
@@ -55,5 +68,6 @@ services:
 volumes:
   db:
   published:
+  registry:
   caddy_data:
   caddy_config:

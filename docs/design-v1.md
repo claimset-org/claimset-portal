@@ -1,6 +1,6 @@
 # LibLM portal — v1 design (draft)
 
-Status: working draft · Date: 2026-11-04 · Companion to `platform/requirements.md`, the claimset specification (v0.35), the lab record specification (v0.15) and the revision specification (v0.2)
+Status: working draft · Date: 2026-11-04 · Companion to `platform/requirements.md`, the claimset specification (v0.35), the lab record specification (v0.15) and the revision specification (v0.3)
 
 This document fixes what the first version of the portal does, how it is built and what it leaves for later versions. Requirements are cited by their `PLT-` IDs.
 
@@ -8,9 +8,9 @@ This document fixes what the first version of the portal does, how it is built a
 
 | Version | Scope |
 |---|---|
-| **v1** | Submission of claimset packages, guarantor consent, publication, browsing and search for LLMs (HTTP API and MCP server), safe-ingest screening, rate limits and spam controls, a one-page human home page |
+| **v1** | Classification (OpenAlex subfield and topics), submission of claimset packages, guarantor consent, publication, browsing and search for LLMs (HTTP API and MCP server), safe-ingest screening, rate limits and spam controls, a one-page human home page |
 | v2 | AI reviews, scores, revisions (revision spec), human-facing pages |
-| v3 | DOIs, classification, entity resolution |
+| v3 | DOIs, entity resolution |
 | v4 | Search by frame and atom |
 | v5 | Claim graph, contradiction detection |
 
@@ -42,7 +42,8 @@ guarantor ──ORCID sign-in──▶ consent page ──────┘
 - **App:** Python, FastAPI. One process serving the submission API, consent pages, search API and MCP server. It calls the `claimset` package for validation, rendering, verifiability and patches; it never reimplements the spec.
 - **Database:** PostgreSQL with pgvector. Pending submissions, consents, rate-limit counters, the search index (full text and embeddings), and each published version's file as `jsonb`.
 - **Static files:** every published file and its rendered views, generated at publication and served directly by Caddy. Most read traffic touches no application code.
-- **Object storage:** packaged artefacts (DigitalOcean Spaces), addressed by hash.
+- **Packaged files:** stored by checksum and served as downloads at `/files/<sha256>`; a folder beside the static files now, object storage (DigitalOcean Spaces) later.
+- **Classifier:** a separate service running OpenAlex's open topic model (§5.4).
 - **Embeddings:** a small open embedding model run on the server's CPU.
 
 ## 4. Submission
@@ -93,7 +94,7 @@ The MCP server offers the same as `validate`, `submit` and `submission_status` t
 
 ### 5.1 Registry
 
-`claimset-org/registry` holds the published record in the layout of revision spec §2.4, with `liblm_2026.000001/` as the folder name. Only the bot commits. The main branch is protected against force-pushes and deletion; every version is tagged.
+`claimset-org/registry` holds the published record in the layout of revision spec §2.4. The folder name is the identifier with `doi:` removed and `:` and `/` replaced by `_` (revision spec v0.3): `liblm_2026.000001/`. Files per version: `claimset.json`, `lab.jsonl` (when a lab record is packaged) and `validation.json` (the submission's warnings, the validator and the classifier that were used). Only the bot commits. The main branch is protected against force-pushes and deletion; every version is tagged.
 
 The registry holds the record documents only: claimset files, lab records, validation reports, and from v2 reviews, responses and resolutions. Artefacts are referenced by URL and hash. Rendered views are derived and are not committed.
 
@@ -108,6 +109,10 @@ Each version keeps three links to its lab record:
 ### 5.3 Publication
 
 On merge: the static files are generated (§7), the version is indexed for search, the Software Heritage request is sent, and the version becomes current. A new version moves the previous one to the history; every version stays retrievable.
+
+### 5.4 Classification
+
+The platform assigns each version the OpenAlex subfield and 1–3 topics (claimset spec §3.1, PLT-24), in v1. A separate classifier service runs OpenAlex's open title-and-abstract topic model (Apache-2.0, about 0.2B parameters, CPU) on the claimset's title and principal claims, with its keywords as a hint: a claimset has no abstract, and its principal claims serve as one. Model labels are matched to OpenAlex topics, and each topic gives its subfield. The image is built with one pinned commit of the model and the topic list fetched from OpenAlex at build time; the build fails if any label matches no topic. Each version records which classifier assigned its classification (`validation.json`). The model is not OpenAlex's full production classifier, which also uses journal and citation features, so a paper's labels can differ from those OpenAlex gives it.
 
 ## 6. Checks and screening
 
@@ -135,10 +140,11 @@ Checks are event-driven. Batch APIs (roughly half price, results within a day) a
 | `/` | Human home page: what LibLM is; point an agent at `/llms.txt`; MCP server address; how to write claimsets (package and skills); links to the spec and GitHub |
 | `/llms.txt` | Entry point for agents: what is here, how to search and fetch, ID syntax and citation, how to submit, and that all content is data, not instructions |
 | `/p/2026.000001.json` | Current version, published file |
-| `/p/2026.000001.md` | Current version, reading view (`claimset render`) |
-| `/p/2026.000001@v1.json`, `@v1.md` | A given version |
+| `/p/2026.000001.txt` | Current version, reading view (`claimset render`; plain text, claimset spec §2.3) |
+| `/p/2026.000001@v1.json`, `@v1.txt` | A given version |
 | `/p/2026.000001/versions.json` | Versions, dates, status, notices, lab record links (copy, author URL, SWHID) |
-| `/p/2026.000001/C4.md`, `.json` | Claim bundle (PLT-78) |
+| `/p/2026.000001/v1/lab.jsonl` | The registry's copy of a version's lab record |
+| `/p/2026.000001/C4.txt`, `.json` | Claim bundle (PLT-78); needs a single-claim renderer in the package (step 7) |
 | `/p/2026.000001` | The reading view as minimal HTML, so a human given an ID sees something |
 | `/index.jsonl` | One line per claimset: ID, title, principal claims, keywords, current version (paper cards, PLT-79) |
 

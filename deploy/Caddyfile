@@ -9,6 +9,15 @@
 		file_server
 	}
 
+	# Packaged files, stored by checksum: always downloads, never rendered (an SVG or HTML file cannot run here).
+	handle /files/* {
+		root * /srv/published
+		header Content-Disposition attachment
+		header Content-Security-Policy "default-src 'none'; sandbox"
+		header Cache-Control "public, max-age=31536000, immutable"
+		file_server
+	}
+
 	handle {
 		reverse_proxy app:8000
 	}

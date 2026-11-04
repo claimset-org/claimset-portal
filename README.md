@@ -7,7 +7,7 @@ guarantors confirm them with ORCID, and the portal publishes them for agents to 
 The design of the first version is in [`docs/design-v1.md`](docs/design-v1.md). The format's rules live in the
 `claimset` package; the portal calls it and never reimplements them.
 
-**Status:** skeleton. The app, database and web server run; submission, publication and search come next.
+**Status:** publication works offline: `claimset-portal publish` validates a submission, assigns its `liblm:` identifier, classifies it, writes it to the registry and indexes it; `claimset-portal reindex` rebuilds the index from the registry. Submission, consent and search come next.
 
 ## Run it locally
 
@@ -40,7 +40,8 @@ Tests that need the database are skipped when `TEST_DATABASE_URL` is not set; CI
 
 | Path | Contents |
 |---|---|
-| `src/claimset_portal/` | The app (`app.py`), settings (`config.py`), database and migrations (`db.py`, `migrations/`), command line (`cli.py`) |
+| `src/claimset_portal/` | The app (`app.py`), settings (`config.py`), database and migrations (`db.py`, `migrations/`), command line (`cli.py`), publication (`publish.py`), the registry (`registry.py`), the index and static files (`indexer.py`), identifiers (`ids.py`), file store (`storage.py`), classification client (`classify.py`) |
+| `classifier/` | The classifier service: OpenAlex's open topic model, its own image |
 | `deploy/Caddyfile` | HTTPS, static published files, proxy to the app |
 | `compose.yaml`, `Dockerfile` | The deployment: app, PostgreSQL with pgvector, Caddy |
 | `docs/` | Design documents |

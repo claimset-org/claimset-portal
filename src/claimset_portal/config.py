@@ -15,6 +15,13 @@ class Settings:
     published_dir: Path
     #: "development" or "production".
     environment: str
+    #: The local clone of the registry (revision spec §2.4).
+    registry_dir: Path
+    #: The classifier service.
+    classifier_url: str
+    #: The name and address the registry's commits are made under.
+    git_name: str
+    git_email: str
 
     @classmethod
     def from_env(cls, env=None):
@@ -24,4 +31,8 @@ class Settings:
             base_url=env.get("PORTAL_BASE_URL", "http://localhost:8000").rstrip("/"),
             published_dir=Path(env.get("PORTAL_PUBLISHED_DIR", "./published")),
             environment=env.get("PORTAL_ENV", "development"),
+            registry_dir=Path(env.get("PORTAL_REGISTRY_DIR", "./registry")),
+            classifier_url=env.get("PORTAL_CLASSIFIER_URL", "http://localhost:8001"),
+            git_name=env.get("PORTAL_GIT_NAME", "LibLM"),
+            git_email=env.get("PORTAL_GIT_EMAIL", "registry@liblm.invalid"),
         )
