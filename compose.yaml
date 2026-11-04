@@ -44,12 +44,14 @@ services:
       PORTAL_PUBLISHED_DIR: /srv/published
       PORTAL_ENV: ${PORTAL_ENV:-development}
       PORTAL_REGISTRY_DIR: /srv/registry
+      PORTAL_SUBMISSIONS_DIR: /srv/submissions
       PORTAL_CLASSIFIER_URL: http://classifier:8001
       PORTAL_GIT_NAME: ${PORTAL_GIT_NAME:-LibLM}
       PORTAL_GIT_EMAIL: ${PORTAL_GIT_EMAIL:-registry@liblm.invalid}
     volumes:
       - published:/srv/published
       - registry:/srv/registry
+      - submissions:/srv/submissions
 
   caddy:
     image: caddy:2
@@ -75,5 +77,6 @@ volumes:
   db:
   published:
   registry:
+  submissions:
   caddy_data:
   caddy_config:
