@@ -17,6 +17,8 @@ class Settings:
     environment: str
     #: The local clone of the registry (revision spec §2.4).
     registry_dir: Path
+    #: Pending submissions and uploads in progress. Not public.
+    submissions_dir: Path
     #: The classifier service.
     classifier_url: str
     #: The name and address the registry's commits are made under.
@@ -32,6 +34,7 @@ class Settings:
             published_dir=Path(env.get("PORTAL_PUBLISHED_DIR", "./published")),
             environment=env.get("PORTAL_ENV", "development"),
             registry_dir=Path(env.get("PORTAL_REGISTRY_DIR", "./registry")),
+            submissions_dir=Path(env.get("PORTAL_SUBMISSIONS_DIR", "./submissions")),
             classifier_url=env.get("PORTAL_CLASSIFIER_URL", "http://localhost:8001"),
             git_name=env.get("PORTAL_GIT_NAME", "LibLM"),
             git_email=env.get("PORTAL_GIT_EMAIL", "registry@liblm.invalid"),

@@ -66,14 +66,16 @@ data/
 
 ### 4.2 Flow
 
-1. `POST /api/submissions` with the package (zip) or the claimset file. No account and no token.
+1. `POST /api/submissions` with the package (zip) or the claimset file as the request body (`curl --data-binary @paper.zip -H 'Content-Type: application/zip'`). No account and no token. `POST /api/validate` runs the same checks and keeps nothing. Uploads over 210 MB are refused.
 2. Synchronous checks: package limits (rule 77), validator (claimset §10, current spec version only), deterministic screening (§6). Errors are returned in machine-readable form and nothing is kept.
 3. A valid package becomes a pending submission with an internal ID (PLT-21) and a **consent link** for each human guarantor. The agent passes the link to its human.
 4. Each guarantor signs in with ORCID on the consent page, sees a readable summary of the claims they answer for, and confirms (PLT-15, PLT-16). Their ORCID iD must match one named in the file.
 5. All guarantors must confirm within **48 hours**. Otherwise the submission is deleted and never shown.
 6. On consent, the platform assigns the provisional ID, version, date and status, computes verifiability (PLT-14, PLT-22), and opens a pull request on the registry (§5).
 7. The registry's checks run on the PR (§6). If they pass, the bot merges and tags; publication follows (§5.3). If they fail, the PR is closed with the reasons. The ID is not reused.
-8. `GET /api/submissions/{id}` reports the state at every step.
+8. `GET /api/submissions/{id}` reports the state at every step (`pending`, `confirmed`, `published`, `refused`, `expired`) and which guarantors have confirmed, never the content. The ID is unguessable; consent links are shown only in the response to the submission, and only their hashes are stored. Closed submissions are forgotten 14 days after their window ends.
+
+In v1 every guarantor is a person with an ORCID iD: a submission naming an organisation guarantor is refused until organisations can confirm (PLT-3).
 
 Corrections (PLT-23) go through the same flow, with `paper.id` naming the existing claimset. Revisions with responses wait for v2.
 
@@ -124,7 +126,7 @@ The platform assigns each version the OpenAlex subfield and 1–3 topics (claims
 
 **Safe-ingest screening (PLT-18).** Every free-text field is screened for content addressed to reading models, since LibLM exists to place submitted text in other models' contexts.
 
-- Deterministic rules: imperatives addressed to models, invisible and direction-changing Unicode, homoglyph runs, encoded blobs, unexpected URLs in statements.
+- Deterministic rules (`screening-1`, codes SI1–SI4): invisible and direction-changing Unicode (zero-width joiners, which ordinary scripts need, are allowed); text addressed to a reading model (role markers, "ignore previous instructions" and the like); long encoded runs; links in claim statements. They add to the `claimset` validator's own narrower check (error `safe-ingest`). Homoglyph runs are not yet checked.
 - LLM classifier: the fields are given to a small model as data, with a public prompt, which reports any instruction, persuasion aimed at models, or non-research content.
 
 A failure blocks publication and is reported to the submitter. Screening rules and the prompt are public and versioned, and each published version records the screening version that passed it.

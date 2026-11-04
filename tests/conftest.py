@@ -22,7 +22,10 @@ def database_url():
 
 @pytest.fixture
 def settings(database_url, tmp_path):
-    return Settings.from_env({"DATABASE_URL": database_url, "PORTAL_PUBLISHED_DIR": str(tmp_path / "published")})
+    return Settings.from_env({"DATABASE_URL": database_url, "PORTAL_PUBLISHED_DIR": str(tmp_path / "published"),
+                              "PORTAL_SUBMISSIONS_DIR": str(tmp_path / "submissions"),
+                              "PORTAL_REGISTRY_DIR": str(tmp_path / "registry"),
+                              "PORTAL_BASE_URL": "https://liblm.test"})
 
 
 @pytest.fixture
@@ -34,7 +37,7 @@ def client(settings):
     pool = make_pool(settings.database_url, min_size=1, max_size=2)
     pool.open()
     try:
-        with TestClient(create_app(settings, pool=pool)) as c:
+        with TestClient(create_app(settings, pool=pool, run_expiry=False)) as c:
             yield c
     finally:
         pool.close()
