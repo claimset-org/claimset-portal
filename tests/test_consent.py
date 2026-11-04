@@ -5,6 +5,7 @@ import urllib.parse
 import psycopg
 import pytest
 from fastapi.testclient import TestClient
+from test_publish import example, fake_classifier
 
 from claimset_portal import consent
 from claimset_portal.app import create_app
@@ -12,7 +13,6 @@ from claimset_portal.db import make_pool, migrate
 from claimset_portal.orcid import OrcidError
 from claimset_portal.registry import Registry
 from claimset_portal.storage import FileStore
-from test_publish import example, fake_classifier
 
 GUARANTOR = "0000-0000-0000-0000"                    # the guarantor of the example claimset
 
