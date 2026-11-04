@@ -82,7 +82,7 @@ def test_submitted_text_is_escaped(app_client):
 def test_the_guarantor_confirms_and_the_claimset_is_published(app_client, settings):
     out, token = submit(app_client)
     r = sign_in(app_client, token)
-    assert r.status_code == 200 and "published as liblm:" in r.text, r.text
+    assert r.status_code == 200 and "published as entrylib:" in r.text, r.text
     s = app_client.get(f"/api/submissions/{out['id']}").json()
     assert s["state"] == "published" and s["published"].endswith("@v1")
     assert s["guarantors"] == [{"orcid": GUARANTOR, "confirmed": True}]

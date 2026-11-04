@@ -46,8 +46,8 @@ services:
       PORTAL_REGISTRY_DIR: /srv/registry
       PORTAL_SUBMISSIONS_DIR: /srv/submissions
       PORTAL_CLASSIFIER_URL: http://classifier:8001
-      PORTAL_GIT_NAME: ${PORTAL_GIT_NAME:-LibLM}
-      PORTAL_GIT_EMAIL: ${PORTAL_GIT_EMAIL:-registry@liblm.invalid}
+      PORTAL_GIT_NAME: ${PORTAL_GIT_NAME:-EntryLib}
+      PORTAL_GIT_EMAIL: ${PORTAL_GIT_EMAIL:-registry@entrylib.org}
       ORCID_BASE: ${ORCID_BASE:-https://sandbox.orcid.org}
       ORCID_CLIENT_ID: ${ORCID_CLIENT_ID:-}
       ORCID_CLIENT_SECRET: ${ORCID_CLIENT_SECRET:-}

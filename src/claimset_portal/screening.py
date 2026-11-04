@@ -1,6 +1,6 @@
 """Safe-ingest screening, deterministic part (design §6, PLT-18).
 
-LibLM exists to put submitted text into other models' contexts, so every text field is screened for content
+EntryLib exists to put submitted text into other models' contexts, so every text field is screened for content
 addressed to reading models. These rules are cheap and run on every submission; the LLM classifier runs later, only
 after consent. The rules are public and versioned: a published version records the screening version that passed it.
 The `claimset` validator has its own, narrower check (error `safe-ingest`); these rules add to it at the door. Codes

@@ -1,7 +1,7 @@
 # Working on this repository
 
 - `docs/design-v1.md` is the design. Change it first when a change departs from it.
-- The claimset format's rules belong to the `claimset` package (github.com/claimset-org/claimset). Call it; never reimplement validation, rendering, verifiability or patches here. If the portal needs a rule the package lacks, add it to the package.
+- The claimset format's rules belong to the `claimset` package (github.com/entrylib/claimset). Call it; never reimplement validation, rendering, verifiability or patches here. If the portal needs a rule the package lacks, add it to the package.
 - The `claimset` dependency is pinned to a commit in `pyproject.toml`. Move the pin deliberately, in its own commit, and say which spec version the portal then accepts.
 - Python 3.12+. Keep dependencies few; discuss before adding one.
 - Database changes are new files in `src/claimset_portal/migrations/` (`NNNN_description.sql`). Never edit a merged migration.

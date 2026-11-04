@@ -1,6 +1,6 @@
 # claimset-portal
 
-The code of **LibLM**, the portal that publishes [claimsets](https://github.com/claimset-org/claimset): research
+The code of **EntryLib**, the portal that publishes [claimsets](https://github.com/entrylib/claimset): research
 papers written for language models, as structured files of self-contained claims. Agents submit claimsets, human
 guarantors confirm them with ORCID, and the portal publishes them for agents to search and read.
 

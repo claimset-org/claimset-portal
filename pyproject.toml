@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "claimset-portal"
 version = "0.1.0"
-description = "LibLM: the portal that publishes claimsets, research papers written for LLM readers."
+description = "EntryLib: the portal that publishes claimsets, research papers written for LLM readers."
 readme = "README.md"
 license = {text = "Apache-2.0"}
 requires-python = ">=3.12"
@@ -13,7 +13,7 @@ authors = [{name = "Claimset contributors"}]
 dependencies = [
   # The claimset package is the single source of the format's rules: the portal calls it, never reimplements it.
   # Pinned to a commit; move the pin forward deliberately, with the spec version the portal accepts.
-  "claimset @ git+https://github.com/claimset-org/claimset@4b4fdf101bc92dad79bd54ba300c41ee49f12ad6",
+  "claimset @ git+https://github.com/entrylib/claimset@83d800fa05a286ce4e29b4c739975d679a190f11",
   "fastapi>=0.115",
   "uvicorn[standard]>=0.30",
   "psycopg[binary,pool]>=3.2",
@@ -26,7 +26,7 @@ dev = ["pytest>=8", "httpx>=0.27", "ruff>=0.6"]
 claimset-portal = "claimset_portal.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/claimset-org/claimset-portal"
+Homepage = "https://github.com/entrylib/portal"
 
 [tool.setuptools.packages.find]
 where = ["src"]

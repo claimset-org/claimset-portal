@@ -20,10 +20,10 @@ jobs:
       - name: Build (needs the repository secret OPENALEX_API_KEY)
         env:
           OPENALEX_API_KEY: ${{ secrets.OPENALEX_API_KEY }}
-        run: docker build --secret id=openalex_api_key,env=OPENALEX_API_KEY -t liblm-classifier classifier
+        run: docker build --secret id=openalex_api_key,env=OPENALEX_API_KEY -t entrylib-classifier classifier
       - name: Classify a sample text
         run: |
-          docker run -d --name clf -p 8001:8001 liblm-classifier
+          docker run -d --name clf -p 8001:8001 entrylib-classifier
           for i in $(seq 1 60); do curl -sf localhost:8001/healthz && break; sleep 2; done
           curl -sf -X POST localhost:8001/classify -H 'Content-Type: application/json' \
             -d '{"title": "Forecasting retail demand with exponential smoothing", "abstract": "Exponential smoothing models with multiple seasonal patterns forecast hourly electricity demand more accurately than ARIMA."}' \
