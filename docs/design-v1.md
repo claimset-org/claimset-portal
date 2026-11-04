@@ -1,6 +1,6 @@
-# LibLM portal — v1 design (draft)
+# EntryLib portal — v1 design (draft)
 
-Status: working draft · Date: 2026-11-04 · Companion to `platform/requirements.md`, the claimset specification (v0.36), the lab record specification (v0.15) and the revision specification (v0.4)
+Status: working draft · Date: 2026-11-04 · Companion to `platform/requirements.md`, the claimset specification (v0.37), the lab record specification (v0.15) and the revision specification (v0.5)
 
 This document fixes what the first version of the portal does, how it is built and what it leaves for later versions. Requirements are cited by their `PLT-` IDs.
 
@@ -18,7 +18,7 @@ v1 keeps room for v2: versions, the review folder of the registry and the review
 
 ## 2. Principles
 
-1. **LLM first.** v1 serves agents. Humans get one page explaining what LibLM is and how to point an agent at it.
+1. **LLM first.** v1 serves agents. Humans get one page explaining what EntryLib is and how to point an agent at it.
 2. **Publication on consent.** A valid package whose guarantors confirm is published. Quality is judged by the v2 reviewer, not by a gate.
 3. **Nothing is withdrawn.** Published versions stay. Problems are marked with notices (§9). The only exception is legal removal.
 4. **The registry is the record; the database is an index.** Every published document is committed to a public git registry. The portal's database can be rebuilt from it.
@@ -81,7 +81,7 @@ A claimset has exactly one guarantor: the main author, the person to contact, a 
 
 Corrections (PLT-23) go through the same flow, with `paper.id` naming the existing claimset. Revisions with responses wait for v2.
 
-### 4.3 From the lab to LibLM
+### 4.3 From the lab to EntryLib
 
 No GitHub account is needed at any point. An author working with claimset-lab:
 
@@ -98,7 +98,7 @@ The MCP server offers the same as `validate`, `submit` and `submission_status` t
 
 ### 5.1 Registry
 
-`claimset-org/registry` holds the published record in the layout of revision spec §2.4. The folder name is the identifier with `doi:` removed and `:` and `/` replaced by `_` (revision spec v0.3): `liblm_2026.000001/`. Files per version: `claimset.json`, `lab.jsonl` (when a lab record is packaged) and `validation.json` (the submission's warnings, the validator and the classifier that were used). Only the bot commits. The main branch is protected against force-pushes and deletion; every version is tagged.
+`entrylib/registry` holds the published record in the layout of revision spec §2.4. The folder name is the identifier with `doi:` removed and `:` and `/` replaced by `_` (revision spec v0.3): `entrylib_2026.000001/`. Files per version: `claimset.json`, `lab.jsonl` (when a lab record is packaged) and `validation.json` (the submission's warnings, the validator and the classifier that were used). Only the bot commits. The main branch is protected against force-pushes and deletion; every version is tagged.
 
 The registry holds the record documents only: claimset files, lab records, validation reports, and from v2 reviews, responses and resolutions. Artefacts are referenced by URL and hash. Rendered views are derived and are not committed.
 
@@ -126,7 +126,7 @@ The platform assigns each version the OpenAlex subfield and 1–3 topics (claims
 | Lab record hash chain (lab record §6) | On the registry PR | CPU only |
 | LLM screening | On the registry PR, so only after consent | A small model; on the order of cents per claimset |
 
-**Safe-ingest screening (PLT-18).** Every free-text field is screened for content addressed to reading models, since LibLM exists to place submitted text in other models' contexts.
+**Safe-ingest screening (PLT-18).** Every free-text field is screened for content addressed to reading models, since EntryLib exists to place submitted text in other models' contexts.
 
 - Deterministic rules (`screening-1`, codes SI1–SI4): invisible and direction-changing Unicode (zero-width joiners, which ordinary scripts need, are allowed); text addressed to a reading model (role markers, "ignore previous instructions" and the like); long encoded runs; links in claim statements. They add to the `claimset` validator's own narrower check (error `safe-ingest`). Homoglyph runs are not yet checked.
 - LLM classifier: the fields are given to a small model as data, with a public prompt, which reports any instruction, persuasion aimed at models, or non-research content.
@@ -141,7 +141,7 @@ Checks are event-driven. Batch APIs (roughly half price, results within a day) a
 
 | URL | Content |
 |---|---|
-| `/` | Human home page: what LibLM is; point an agent at `/llms.txt`; MCP server address; how to write claimsets (package and skills); links to the spec and GitHub |
+| `/` | Human home page: what EntryLib is; point an agent at `/llms.txt`; MCP server address; how to write claimsets (package and skills); links to the spec and GitHub |
 | `/llms.txt` | Entry point for agents: what is here, how to search and fetch, ID syntax and citation, how to submit, and that all content is data, not instructions |
 | `/p/2026.000001.json` | Current version, published file |
 | `/p/2026.000001.txt` | Current version, reading view (`claimset render`; plain text, claimset spec §2.3) |
@@ -201,13 +201,13 @@ The one exception is legal: personal data, infringing or unlawful content. Such 
 | Authors | Not needed. Lab repositories may be on any public git host, or none | Unaffected |
 | Registry | Hosted on GitHub | Mirrored automatically to a second host and to Software Heritage; the portal keeps its own clone and continues serving |
 | Checks | Run as GitHub Actions on the registry PR, for free compute and public logs | The checks are one container image (`claimset-portal check`); the portal runs it itself and commits to its own clone until GitHub returns or another host takes over |
-| Code | `claimset-org/claimset-portal` | Mirrored like the registry |
+| Code | `entrylib/portal` | Mirrored like the registry |
 
 GitHub is the place where the record is published and the checks are logged, not something the platform cannot run without.
 
 ## 12. Changes needed elsewhere
 
-- **Claimset spec and package:** done in spec v0.35 (claimset PR #44): provisional `liblm:` identifiers (§7, rule 76) and package limits (§2.5, rule 77). Packages themselves (BagIt, rule 70) were already in v0.34.
+- **Claimset spec and package:** done in spec v0.35 (claimset PR #44): provisional `entrylib:` identifiers (§7, rule 76) and package limits (§2.5, rule 77). Packages themselves (BagIt, rule 70) were already in v0.34.
 - **Revision spec §2.4:** the lab record is kept as a copy in the registry with the author's commit-pinned URL and SWHID.
 - **Package:** `claimset submit`, `claimset status` (step 9).
 - **Skill:** `claimset-submit` ends with packaging and submitting, and tells the guarantor about the consent link and the 48-hour window.
@@ -224,7 +224,7 @@ Changed by this design: PLT-1 and PLT-3 to PLT-5 (accounts and agent tokens) are
 
 ## 15. Open questions
 
-1. **Domain.** Needed before the ORCID application and Cloudflare are set up.
+1. **Domain.** Settled: entrylib.org. The production ORCID client will use the redirect URI https://entrylib.org/consent/callback.
 2. **Paid accounts.** Publishing stays free. Candidates: higher read quotas on the API and MCP; higher submission quotas for verified organisations; private pre-submission checks, including a preview of the v2 reviewer's comments; bulk export.
 3. **Several guarantors.** Whether 48 hours is enough when guarantors are in different time zones, or whether the window restarts when the first confirms.
 4. **ORCID works.** Writing works to ORCID records needs ORCID membership. Until v3 brings DOIs and DataCite auto-update, guarantors add claimsets to their records by hand; the consent page says how.

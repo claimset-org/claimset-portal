@@ -14,7 +14,7 @@ from claimset_portal.publish import PublishError, publish
 from claimset_portal.registry import Registry
 from claimset_portal.storage import FileStore
 
-BASE = "https://liblm.test"
+BASE = "https://entrylib.test"
 TODAY = dt.date(2026, 11, 4)
 
 
@@ -47,18 +47,18 @@ def write(tmp_path, doc, name="paper.claimset.json"):
 def test_publish_a_claimset_file(env):
     ctx, tmp = env
     concept, version = publish(write(tmp, example()), **ctx)
-    assert (concept, version) == ("liblm:2026.000001", 1)
+    assert (concept, version) == ("entrylib:2026.000001", 1)
 
     reg = ctx["registry"]
-    doc = reg.read("liblm_2026.000001", 1)
+    doc = reg.read("entrylib_2026.000001", 1)
     assert validate(doc, published=True).errors == []
     p = doc["paper"]
     assert (p["id"], p["version"], p["status"], p["date"]) == (concept, 1, "active", "2026-11-04")
     assert p["classification"]["subfield"] == "openalex:subfields/1803"
     assert p["classification"]["topics"] == ["openalex:T10001", "openalex:T10002"]
     assert all("verifiability" in c for c in doc["claims"])
-    assert "liblm_2026.000001-v1" in reg.git("tag").split()
-    assert reg.read("liblm_2026.000001", 1, "validation.json")["classifier"] == "fake-classifier@1"
+    assert "entrylib_2026.000001-v1" in reg.git("tag").split()
+    assert reg.read("entrylib_2026.000001", 1, "validation.json")["classifier"] == "fake-classifier@1"
 
     out = ctx["published_dir"]
     assert json.loads((out / "p" / "2026.000001.json").read_text())["paper"]["id"] == concept
@@ -80,7 +80,7 @@ def test_identifiers_are_sequential(env):
     ctx, tmp = env
     a, _ = publish(write(tmp, example()), **ctx)
     b, _ = publish(write(tmp, example(), "other.claimset.json"), **ctx)
-    assert (a, b) == ("liblm:2026.000001", "liblm:2026.000002")
+    assert (a, b) == ("entrylib:2026.000001", "entrylib:2026.000002")
 
 
 def test_publish_a_package_with_files_and_a_lab_record(env):
@@ -99,12 +99,12 @@ def test_publish_a_package_with_files_and_a_lab_record(env):
     build(src, tmp / "paper.zip")
     concept, _ = publish(tmp / "paper.zip", **ctx)
 
-    published = ctx["registry"].read("liblm_2026.000001", 1)
+    published = ctx["registry"].read("entrylib_2026.000001", 1)
     by_id = {a["id"]: a for a in published["artefacts"]}
     digest = by_id["A3"]["version"].removeprefix("sha256:")
     assert by_id["A3"]["uri"] == f"{BASE}/files/{digest}"
     assert (ctx["published_dir"] / "files" / digest).read_bytes() == b"image bytes"
-    lab = ctx["registry"].version_dir("liblm_2026.000001", 1) / "lab.jsonl"
+    lab = ctx["registry"].version_dir("entrylib_2026.000001", 1) / "lab.jsonl"
     assert lab.read_text() == '{"seq": 1}\n'
     versions = json.loads((ctx["published_dir"] / "p" / "2026.000001" / "versions.json").read_text())
     assert versions["versions"][0]["lab_record"]["copy"] == f"{BASE}/p/2026.000001/v1/lab.jsonl"
@@ -142,7 +142,7 @@ def test_correction(env):
     concept2, version = publish(write(tmp, doc, "fixed.claimset.json"), **{**ctx, "today": dt.date(2026, 11, 5)})
     assert (concept2, version) == (concept, 2)
 
-    v2 = ctx["registry"].read("liblm_2026.000001", 2)
+    v2 = ctx["registry"].read("entrylib_2026.000001", 2)
     assert validate(v2, published=True).errors == []
     p = v2["paper"]
     assert (p["status"], p["previous_version"], p["date"]) == ("corrected", f"{concept}@v1", "2026-11-05")
@@ -161,7 +161,7 @@ def test_correction(env):
 def test_a_correction_must_name_a_published_claimset(env):
     ctx, tmp = env
     doc = example()
-    doc["paper"]["id"] = "liblm:2026.000999"
+    doc["paper"]["id"] = "entrylib:2026.000999"
     doc["paper"]["correction_reason"] = "Something was wrong."
     with pytest.raises(PublishError, match="not published here"):
         publish(write(tmp, doc), **ctx)
@@ -180,12 +180,13 @@ def test_reindex_rebuilds_everything_from_the_registry(env):
     (ctx["published_dir"] / "index.jsonl").unlink()
     (ctx["published_dir"] / "p" / "2026.000001.json").unlink()
 
-    assert reindex(conn, ctx["registry"], ctx["published_dir"], BASE) == ["liblm_2026.000001", "liblm_2026.000002"]
+    folders = reindex(conn, ctx["registry"], ctx["published_dir"], BASE)
+    assert folders == ["entrylib_2026.000001", "entrylib_2026.000002"]
     assert conn.execute("SELECT concept_id, current_version, title FROM papers ORDER BY 1").fetchall() == before
     assert (ctx["published_dir"] / "index.jsonl").read_text() == index_before
     assert (ctx["published_dir"] / "p" / "2026.000001.json").exists()
     concept, _ = publish(write(tmp, example(), "c.claimset.json"), **ctx)
-    assert concept == "liblm:2026.000003"                             # counters restored from the registry
+    assert concept == "entrylib:2026.000003"                             # counters restored from the registry
 
 
 def test_classifier_input_uses_title_and_principal_claims():
@@ -200,7 +201,7 @@ def test_classifier_input_uses_title_and_principal_claims():
 def test_registry_never_rewrites_a_version(tmp_path):
     from claimset_portal.registry import RegistryError
     reg = Registry(tmp_path / "r").init()
-    reg.write_version("liblm_2026.000001", 1, {"claimset.json": "{}\n"}, "first")
+    reg.write_version("entrylib_2026.000001", 1, {"claimset.json": "{}\n"}, "first")
     with pytest.raises(RegistryError):
-        reg.write_version("liblm_2026.000001", 1, {"claimset.json": "{}\n"}, "again")
-    assert copy.copy(reg.versions("liblm_2026.000001")) == [1]
+        reg.write_version("entrylib_2026.000001", 1, {"claimset.json": "{}\n"}, "again")
+    assert copy.copy(reg.versions("entrylib_2026.000001")) == [1]

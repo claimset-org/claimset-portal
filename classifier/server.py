@@ -18,7 +18,7 @@ ABOUT = json.loads((DIR / "about.json").read_text())
 TABLE = json.loads((DIR / "table.json").read_text())
 MODEL = pipeline("text-classification", model=str(DIR / "model"), top_k=10, truncation=True)
 
-app = FastAPI(title="LibLM classifier", docs_url=None, redoc_url=None)
+app = FastAPI(title="EntryLib classifier", docs_url=None, redoc_url=None)
 
 
 class Text(BaseModel):

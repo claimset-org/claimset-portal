@@ -1,7 +1,7 @@
 -- Published claimsets. Everything here is an index of the registry and can be rebuilt from it
 -- (`claimset-portal reindex`), except the identifier counters, which reindex restores from the registry too.
 
--- The last number given out per year: `liblm:<year>.<number>`. A number is never given out twice, even when the
+-- The last number given out per year: `entrylib:<year>.<number>`. A number is never given out twice, even when the
 -- publication it was given to fails.
 CREATE TABLE id_counters (
     year integer PRIMARY KEY,
@@ -9,9 +9,9 @@ CREATE TABLE id_counters (
 );
 
 CREATE TABLE papers (
-    concept_id text PRIMARY KEY,           -- liblm:2026.000001
+    concept_id text PRIMARY KEY,           -- entrylib:2026.000001
     url_key text NOT NULL UNIQUE,          -- 2026.000001
-    folder text NOT NULL UNIQUE,           -- liblm_2026.000001, the registry folder
+    folder text NOT NULL UNIQUE,           -- entrylib_2026.000001, the registry folder
     current_version integer NOT NULL,
     title text NOT NULL,
     status text NOT NULL,

@@ -17,7 +17,7 @@ pre { white-space: pre-wrap; background: #f4f4f4; padding: 1rem; border-radius: 
 def page(title, body):
     return (f"<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
             f"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
-            f"<meta name=\"robots\" content=\"noindex\"><title>{escape(title)} · LibLM</title>"
+            f"<meta name=\"robots\" content=\"noindex\"><title>{escape(title)} · EntryLib</title>"
             f"<style>{STYLE}</style></head><body><h1>{escape(title)}</h1>{body}</body></html>")
 
 
@@ -44,7 +44,7 @@ def consent(ctx, start_url, status_url):
                       f"{escape(ctx.get('correction_reason') or '')}</p>")
     expires = ctx["expires"].strftime("%d %B %Y, %H:%M UTC")
     body = f"""
-<p>An agent has submitted a claimset to LibLM that names you, <strong>{escape(ctx['name'] or '')}</strong>
+<p>An agent has submitted a claimset to EntryLib that names you, <strong>{escape(ctx['name'] or '')}</strong>
 (ORCID <code>{escape(ctx['orcid'])}</code>), as its guarantor.</p>
 {correction}
 <div class="box">

@@ -6,7 +6,7 @@
 registry pull request come in later steps; this is the part they all end in:
 
 1. validate the submission with the `claimset` package (rules of every file, submission rules, rules 70 and 77);
-2. a new claimset gets the next `liblm:` identifier; a correction names an existing one (claimset spec §9);
+2. a new claimset gets the next `entrylib:` identifier; a correction names an existing one (claimset spec §9);
 3. packaged files are stored by checksum and their relative `uri` replaced with the permanent URL;
 4. the platform's fields are added: identifier, version, date, status, classification, verifiability, and for a
    correction previous_version, changes and the status notice;

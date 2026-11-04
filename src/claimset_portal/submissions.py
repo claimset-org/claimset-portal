@@ -120,7 +120,7 @@ def receive(conn, upload, *, submissions_dir, base_url, client_ip=None, now=None
     doc = result.doc
     paper = doc["paper"]
     if paper.get("origin") == "converted":
-        raise SubmissionError("converted claimsets are published by LibLM's conversion service, which answers for "
+        raise SubmissionError("converted claimsets are published by EntryLib's conversion service, which answers for "
                               "them as conversion guarantor; this API takes native claimsets, submitted by their "
                               "guarantor")
     people = guarantors(doc)
@@ -130,7 +130,7 @@ def receive(conn, upload, *, submissions_dir, base_url, client_ip=None, now=None
         row = conn.execute("SELECT v.file FROM papers p JOIN versions v ON v.concept_id = p.concept_id"
                            " AND v.version = p.current_version WHERE p.concept_id = %s", (target,)).fetchone()
         if row is None:
-            raise SubmissionError(f"the correction names {target}, which is not published on LibLM")
+            raise SubmissionError(f"the correction names {target}, which is not published on EntryLib")
         current = guarantors(row[0])
         if current and [o for o, _ in people] != [o for o, _ in current]:
             raise SubmissionError(f"a correction is submitted by the guarantor of the current version of {target} "

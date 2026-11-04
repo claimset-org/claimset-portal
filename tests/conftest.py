@@ -25,7 +25,7 @@ def settings(database_url, tmp_path):
     return Settings.from_env({"DATABASE_URL": database_url, "PORTAL_PUBLISHED_DIR": str(tmp_path / "published"),
                               "PORTAL_SUBMISSIONS_DIR": str(tmp_path / "submissions"),
                               "PORTAL_REGISTRY_DIR": str(tmp_path / "registry"),
-                              "PORTAL_BASE_URL": "https://liblm.test"})
+                              "PORTAL_BASE_URL": "https://entrylib.test"})
 
 
 @pytest.fixture

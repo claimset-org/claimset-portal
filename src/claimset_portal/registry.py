@@ -26,7 +26,7 @@ def dump(obj):
 
 
 class Registry:
-    def __init__(self, path, author_name="LibLM", author_email="registry@liblm.invalid"):
+    def __init__(self, path, author_name="EntryLib", author_email="registry@entrylib.org"):
         self.path = Path(path)
         self.env = {**os.environ, "GIT_AUTHOR_NAME": author_name, "GIT_AUTHOR_EMAIL": author_email,
                     "GIT_COMMITTER_NAME": author_name, "GIT_COMMITTER_EMAIL": author_email}

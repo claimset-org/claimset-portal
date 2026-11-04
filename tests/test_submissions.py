@@ -85,7 +85,7 @@ def test_submit_a_claimset_file(client, settings):
     assert out["state"] == "pending" and out["kind"] == "new" and out["id"].startswith("sub_")
     assert out["report"]["valid"] is True
     [link] = out["consent"]
-    assert link["orcid"] == "0000-0000-0000-0000" and link["consent_url"].startswith("https://liblm.test/consent/")
+    assert link["orcid"] == "0000-0000-0000-0000" and link["consent_url"].startswith("https://entrylib.test/consent/")
     received = dt.datetime.fromisoformat(out["received"])
     assert dt.datetime.fromisoformat(out["expires"]) - received == dt.timedelta(hours=48)
     assert (settings.submissions_dir / f"{out['id']}.json").exists()
@@ -161,7 +161,7 @@ def test_organisation_or_second_guarantor_is_refused(client):
 
 def test_correction_must_name_a_published_claimset(client):
     doc = example()
-    doc["paper"]["id"] = "liblm:2026.000999"
+    doc["paper"]["id"] = "entrylib:2026.000999"
     doc["paper"]["correction_reason"] = "The interval in E1 was misreported."
     r = client.post("/api/submissions", content=body(doc), headers=JSON)
     assert r.status_code == 422 and "not published" in r.json()["error"]
@@ -173,13 +173,13 @@ def test_pending_submissions_per_address_are_capped(settings, database_url):
     with psycopg.connect(database_url, autocommit=True) as conn:
         for _ in range(submissions.MAX_PENDING_PER_IP):
             submissions.receive(conn, _file(settings, example()), submissions_dir=settings.submissions_dir,
-                                base_url="https://liblm.test", client_ip="203.0.113.7")
+                                base_url="https://entrylib.test", client_ip="203.0.113.7")
         with pytest.raises(submissions.SubmissionError) as exc:
             submissions.receive(conn, _file(settings, example()), submissions_dir=settings.submissions_dir,
-                                base_url="https://liblm.test", client_ip="203.0.113.7")
+                                base_url="https://entrylib.test", client_ip="203.0.113.7")
         assert exc.value.status == 429
         submissions.receive(conn, _file(settings, example()), submissions_dir=settings.submissions_dir,
-                            base_url="https://liblm.test", client_ip="203.0.113.8")       # another address
+                            base_url="https://entrylib.test", client_ip="203.0.113.8")       # another address
 
 
 def _file(settings, doc):
@@ -208,11 +208,11 @@ def test_expiry_deletes_content_and_later_the_record(client, settings, database_
     with psycopg.connect(database_url, autocommit=True) as conn:
         assert submissions.expire(conn, settings.submissions_dir, now=later) == [sid]
         assert not list(settings.submissions_dir.glob(f"{sid}.*"))
-        s = submissions.status(conn, sid, "https://liblm.test")
+        s = submissions.status(conn, sid, "https://entrylib.test")
         assert s["state"] == "expired" and "48 hours" in s["detail"]
         assert submissions.expire(conn, settings.submissions_dir, now=later) == []
         submissions.expire(conn, settings.submissions_dir, now=later + dt.timedelta(days=15))
-        assert submissions.status(conn, sid, "https://liblm.test") is None
+        assert submissions.status(conn, sid, "https://entrylib.test") is None
 
 
 def test_converted_claimsets_are_not_taken(client):

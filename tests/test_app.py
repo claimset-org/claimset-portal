@@ -30,7 +30,7 @@ def test_healthz_reports_an_unreachable_database():
 def test_home_page(client):
     r = client.get("/")
     assert r.status_code == 200
-    assert "LibLM" in r.text and "/llms.txt" in r.text
+    assert "EntryLib" in r.text and "/llms.txt" in r.text
 
 
 def test_api_docs(client):

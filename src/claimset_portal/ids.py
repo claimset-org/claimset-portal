@@ -1,11 +1,11 @@
-"""Claimset identifiers (claimset spec §7): the platform's provisional identifier `liblm:<year>.<number>`."""
+"""Claimset identifiers (claimset spec §7): the platform's provisional identifier `entrylib:<year>.<number>`."""
 
 import re
 
 from claimset.revision import record_folder
 from claimset.validate import CLAIMSET_ID_RE
 
-PREFIX = "liblm:"
+PREFIX = "entrylib:"
 _KEY_RE = re.compile(r"(\d{4})\.(\d{6,})$")
 
 

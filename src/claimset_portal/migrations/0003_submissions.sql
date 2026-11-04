@@ -14,7 +14,7 @@ CREATE TABLE submissions (
     size bigint NOT NULL,
     report jsonb NOT NULL,                  -- warnings and the verifiability the platform will compute
     client_ip inet,
-    published_id text,                      -- liblm:…@v<n>, once published
+    published_id text,                      -- entrylib:…@v<n>, once published
     detail text                             -- why it was refused, when it was
 );
 

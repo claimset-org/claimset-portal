@@ -116,7 +116,7 @@ def create_app(settings=None, pool=None, run_expiry=True, orcid=None, publisher=
             if own_pool:
                 pool.close()
 
-    app = FastAPI(title="LibLM", version=__version__, lifespan=lifespan,
+    app = FastAPI(title="EntryLib", version=__version__, lifespan=lifespan,
                   docs_url="/api/docs", openapi_url="/api/openapi.json", redoc_url=None)
     app.state.settings = settings
     app.state.pool = pool
