@@ -80,14 +80,10 @@ def check(path):
 
 
 def guarantors(doc):
-    """[(orcid, name)] of the people who must confirm (claimset spec v0.36): the guarantor, the person who submits;
-    in a converted paper the conversion guarantor, and the guarantor if a source author has claimed it. The
-    validator has already checked that each is a person with an ORCID iD (rules 14, 16, 17)."""
-    out = []
-    for c in doc.get("contributors") or []:
-        if isinstance(c, dict) and set(c.get("positions") or []) & {"guarantor", "conversion_guarantor"}:
-            out.append((c["orcid"], c.get("name")))
-    return sorted(set(out))
+    """[(orcid, name)] of the person who must confirm: the guarantor, the main author, who submits (claimset spec
+    v0.36). The validator has checked that it is one person with an ORCID iD (rules 14, 16)."""
+    return sorted({(c["orcid"], c.get("name")) for c in doc.get("contributors") or []
+                   if isinstance(c, dict) and "guarantor" in (c.get("positions") or [])})
 
 
 def new_id():
@@ -123,6 +119,10 @@ def receive(conn, upload, *, submissions_dir, base_url, client_ip=None, now=None
                               warnings=result.warnings)
     doc = result.doc
     paper = doc["paper"]
+    if paper.get("origin") == "converted":
+        raise SubmissionError("converted claimsets are published by LibLM's conversion service, which answers for "
+                              "them as conversion guarantor; this API takes native claimsets, submitted by their "
+                              "guarantor")
     people = guarantors(doc)
     kind, target = "new", None
     if "id" in paper:

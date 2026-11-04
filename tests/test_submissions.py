@@ -213,3 +213,25 @@ def test_expiry_deletes_content_and_later_the_record(client, settings, database_
         assert submissions.expire(conn, settings.submissions_dir, now=later) == []
         submissions.expire(conn, settings.submissions_dir, now=later + dt.timedelta(days=15))
         assert submissions.status(conn, sid, "https://liblm.test") is None
+
+
+def test_converted_claimsets_are_not_taken(client):
+    from test_publish import example as ex
+    doc = ex()
+    doc["paper"].pop("autonomy")
+    doc["paper"]["origin"] = "converted"
+    doc["paper"]["converted_from"] = {
+        "source_id": "arXiv:2601.00000", "id_type": "arxiv", "source_version": "v2", "source_licence": "CC-BY-4.0",
+        "source_authors": [{"name": "B. Scholar", "orcid": "0000-0000-0000-0001"}],
+        "source_status_at_conversion": "active", "converter": "P1", "date": "2026-10-14"}
+    doc["contributors"] = [
+        {"id": "P1", "type": "agent", "name": "Converter", "positions": ["converter"],
+         "models": [{"model": "M1", "role": "sole"}]},
+        {"id": "P3", "type": "organisation", "name": "Example Ltd", "registration": "00000000",
+         "positions": ["conversion_guarantor"]}]
+    for c in doc["claims"]:
+        c["provenance"] = "extracted"
+        c["source_spans"] = ["sec1:p1"]
+        c.pop("assessments", None)
+    r = client.post("/api/submissions", content=body(doc), headers=JSON)
+    assert r.status_code == 422 and "conversion service" in r.json()["error"], r.text
