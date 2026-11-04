@@ -1,7 +1,9 @@
 """Mapping the model's labels to OpenAlex topics and subfields. Pure functions: no model, no network.
 
-The model's labels look like "1048: Ecology and Evolution of Viruses in Ecosystems". They are matched to OpenAlex
-topics by name, since the number in a label need not be the topic's ID. Each topic belongs to exactly one subfield.
+The model's labels look like "2543: Mapping Groundwater Potential Zones Using GIS Techniques". The number n is the
+topic's ID less 10000: label 2543 is topic T12543. Topics are matched by that ID, not by name: OpenAlex has renamed
+most topics since the model was trained (T12543 is now "Groundwater and Watershed Analysis"), while the IDs, and
+the clusters they name, stayed. Each topic belongs to exactly one subfield.
 """
 
 import re
@@ -19,24 +21,31 @@ def short_id(openalex_id):
     return "openalex:" + openalex_id.rsplit("openalex.org/", 1)[-1]
 
 
+def label_number(label):
+    m = re.match(r"^\s*(\d+)\s*:", label)
+    if not m:
+        raise ValueError(f"model label without a number: {label!r}")
+    return int(m.group(1))
+
+
+def topic_id_of(label):
+    """The OpenAlex topic ID a model label names: label n is T(10000 + n)."""
+    return f"T{10000 + label_number(label)}"
+
+
 def build_table(topics, labels):
     """{model label: {"topic", "subfield"}} from OpenAlex topic records ({id, display_name, subfield: {id}}) and the
-    model's labels. Raises ValueError naming the labels that match no topic, or match more than one."""
-    by_name = {}
-    for t in topics:
-        by_name.setdefault(t["display_name"].strip().casefold(), []).append(t)
-    table, missing, ambiguous = {}, [], []
+    model's labels. Raises ValueError naming the labels whose topic OpenAlex does not have."""
+    by_id = {t["id"].rsplit("/", 1)[-1]: t for t in topics}
+    table, missing = {}, []
     for label in labels:
-        found = by_name.get(label_name(label).casefold(), [])
-        if not found:
+        topic = by_id.get(topic_id_of(label))
+        if topic is None:
             missing.append(label)
-        elif len(found) > 1:
-            ambiguous.append(label)
         else:
-            table[label] = {"topic": short_id(found[0]["id"]), "subfield": short_id(found[0]["subfield"]["id"])}
-    if missing or ambiguous:
-        raise ValueError(f"{len(missing)} label(s) match no OpenAlex topic, e.g. {missing[:3]}; "
-                         f"{len(ambiguous)} match several, e.g. {ambiguous[:3]}")
+            table[label] = {"topic": short_id(topic["id"]), "subfield": short_id(topic["subfield"]["id"])}
+    if missing:
+        raise ValueError(f"{len(missing)} label(s) name a topic OpenAlex does not have, e.g. {missing[:3]}")
     return table
 
 

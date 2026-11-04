@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from labels import build_table, classify, label_name, model_input, short_id  # noqa: E402
+from labels import build_table, classify, label_name, model_input, short_id, topic_id_of  # noqa: E402
 
 TOPICS = [
     {"id": "https://openalex.org/T10001", "display_name": "Time Series Forecasting",
@@ -16,7 +16,8 @@ TOPICS = [
     {"id": "https://openalex.org/T10003", "display_name": "Viral Ecology",
      "subfield": {"id": "https://openalex.org/subfields/2404"}},
 ]
-LABELS = ["0: Time Series Forecasting", "1: Supply Chain Management", "2: Viral Ecology"]
+# Labels carry the names the model was trained with; OpenAlex may have renamed the topics since.
+LABELS = ["1: Forecasting Economic Time Series", "2: Supply Chain Management", "3: Viral Ecology"]
 
 
 class TestLabels(unittest.TestCase):
@@ -27,14 +28,19 @@ class TestLabels(unittest.TestCase):
 
     def test_table_and_classify(self):
         table = build_table(TOPICS, LABELS)
-        out = classify([("1: Supply Chain Management", 0.6), ("0: Time Series Forecasting", 0.3),
-                        ("2: Viral Ecology", 0.05), ("0: Time Series Forecasting", 0.01)], table)
+        out = classify([("2: Supply Chain Management", 0.6), ("1: Forecasting Economic Time Series", 0.3),
+                        ("3: Viral Ecology", 0.05), ("1: Forecasting Economic Time Series", 0.01)], table)
         self.assertEqual(out, {"subfield": "openalex:subfields/1408",
                                "topics": ["openalex:T10002", "openalex:T10001", "openalex:T10003"]})
 
-    def test_unmatched_label_fails_the_build(self):
+    def test_labels_match_topics_by_id_not_by_name(self):
+        self.assertEqual(topic_id_of("2543: Mapping Groundwater Potential Zones Using GIS Techniques"), "T12543")
+        table = build_table(TOPICS, LABELS)
+        self.assertEqual(table["1: Forecasting Economic Time Series"]["topic"], "openalex:T10001")   # renamed
+
+    def test_a_label_whose_topic_is_missing_fails_the_build(self):
         with self.assertRaises(ValueError):
-            build_table(TOPICS, LABELS + ["3: A Topic OpenAlex Does Not Have"])
+            build_table(TOPICS, LABELS + ["9: A Topic OpenAlex Does Not Have"])
 
     def test_model_input(self):
         self.assertEqual(model_input("T", ""), "<TITLE> T\n<ABSTRACT> NONE")
