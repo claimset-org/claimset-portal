@@ -36,5 +36,5 @@ def url_key(concept_id):
 
 
 def folder(concept_id):
-    """The claimset's registry folder (revision spec §2.4)."""
+    """The claimset's registry folder, `2026/000/entrylib_2026.000123` (revision spec §2.4)."""
     return record_folder(concept_id)

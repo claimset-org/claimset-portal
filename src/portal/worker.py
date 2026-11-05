@@ -16,6 +16,7 @@ from .archive import archive_version
 from .classify import ClassifierError
 from .indexer import index_version
 from .publish import PublishError, prepare, publish
+from .registry import tag_name
 
 log = logging.getLogger("portal")
 
@@ -140,7 +141,8 @@ def _settle_open(conn, *, settings, remote, archive):
         published_id = f"{concept}@v{version}"
         path = Path(settings.submissions_dir) / file_name if file_name else None
         try:
-            outcome, reason = remote.settle(number, branch, f"Publish {published_id}", f"{folder}-v{version}")
+            outcome, reason = remote.settle(number, branch, f"Publish {published_id}",
+                                           tag_name(folder, version))
         except Exception:
             log.exception("checking registry pull request #%s for %s failed; will retry", number, sid)
             continue

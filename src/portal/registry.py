@@ -1,9 +1,11 @@
 """The registry: a git repository holding the published record (revision spec §2.4).
 
-    <folder>/v1/claimset.json  v1/lab.jsonl  v1/validation.json
-    <folder>/v2/claimset.json  ...
+    <year>/<block>/<name>/v1/claimset.json  v1/lab.jsonl  v1/validation.json
+    <year>/<block>/<name>/v2/claimset.json  ...
 
-Only the platform writes to it, one commit per published version, tagged `<folder>-v<n>`. This module works on a
+A claimset's folder (its path, `2026/000/entrylib_2026.000123`) follows from its identifier
+(`claimset.revision.record_folder`). Only the platform writes to the registry, one commit per published version,
+tagged `<name>-v<n>`. This module works on a
 local clone; pushing to the hosted registry happens elsewhere.
 """
 
@@ -14,10 +16,18 @@ import subprocess
 from pathlib import Path
 
 VERSION_DIR = re.compile(r"^v([1-9]\d*)$")
+YEAR_DIR = re.compile(r"^\d{4}$")
+BLOCK_DIR = re.compile(r"^\d{3,}$")
 
 
 class RegistryError(Exception):
     pass
+
+
+def tag_name(folder, n):
+    """The tag of version n of the claimset in `folder`: its name (the folder's last part) and the version,
+    `entrylib_2026.000123-v2` (revision spec §2.4)."""
+    return f"{folder.rsplit('/', 1)[-1]}-v{n}"
 
 
 def dump(obj):
@@ -55,15 +65,19 @@ class Registry:
         return sorted(int(m.group(1)) for p in d.iterdir() if p.is_dir() and (m := VERSION_DIR.match(p.name)))
 
     def folders(self):
-        """Every claimset folder in the registry."""
-        return sorted(p.name for p in self.path.iterdir()
-                      if p.is_dir() and not p.name.startswith(".") and self.versions(p.name))
+        """Every claimset folder in the registry (`<year>/<block>/<name>`)."""
+        out = []
+        for year in sorted(p for p in self.path.iterdir() if p.is_dir() and YEAR_DIR.match(p.name)):
+            for block in sorted(p for p in year.iterdir() if p.is_dir() and BLOCK_DIR.match(p.name)):
+                out += [f"{year.name}/{block.name}/{p.name}" for p in sorted(block.iterdir())
+                        if p.is_dir() and self.versions(f"{year.name}/{block.name}/{p.name}")]
+        return out
 
     def read(self, folder, n, name="claimset.json"):
         return json.loads((self.version_dir(folder, n) / name).read_text(encoding="utf-8"))
 
     def write_version(self, folder, n, files, message):
-        """Write one version's documents ({name: text}) and commit them with the tag `<folder>-v<n>`.
+        """Write one version's documents ({name: text}) and commit them with the tag `<name>-v<n>`.
         A version that exists is never overwritten."""
         d = self.version_dir(folder, n)
         if d.exists():
@@ -73,5 +87,5 @@ class Registry:
             (d / name).write_text(text, encoding="utf-8")
         self.git("add", "--", f"{folder}/v{n}")
         self.git("commit", "-q", "-m", message)
-        self.git("tag", f"{folder}-v{n}")
+        self.git("tag", tag_name(folder, n))
         return d

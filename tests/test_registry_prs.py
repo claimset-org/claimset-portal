@@ -143,14 +143,14 @@ def test_a_version_is_published_through_a_pull_request(world):
     assert s["state"] == "publishing"
     assert s["registry_pull_request"] == "https://github.com/entrylib/registry/pull/1"
     assert "publish/entrylib_2026.000001-v1" in git(w["bare"], "branch")
-    assert "entrylib_2026" not in git(w["bare"], "ls-tree", "--name-only", "main")      # main is untouched
+    assert "2026" not in git(w["bare"], "ls-tree", "--name-only", "main")      # main is untouched
 
     assert round_(w) == []                                       # no checks yet: waiting
     w["gh"].set_checks("success")
     assert round_(w) == [(sid, "entrylib:2026.000001@v1")]
     s = status(w, sid)
     assert s["state"] == "published" and s["published"] == "entrylib:2026.000001@v1"
-    assert "entrylib_2026.000001" in git(w["bare"], "ls-tree", "--name-only", "main")
+    assert "2026/000/entrylib_2026.000001/v1/claimset.json" in git(w["bare"], "ls-tree", "-r", "--name-only", "main")
     assert git(w["bare"], "tag") == "entrylib_2026.000001-v1"
     assert git(w["bare"], "log", "-1", "--format=%s", "main") == "Publish entrylib:2026.000001@v1"
     assert "publish/" not in git(w["bare"], "branch")                                      # branch deleted
