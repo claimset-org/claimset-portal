@@ -24,6 +24,7 @@ v1 keeps room for v2: versions, the review folder of the registry and the review
 4. **The registry is the record; the database is an index.** Every published document is committed to a public git registry. The portal's database can be rebuilt from it.
 5. **No dependence on one host.** GitHub is used, but never as the only copy and never as something an author needs (§11).
 6. **Open.** Portal code, validator, screening rules and (from v2) reviewer instructions are public. The converter stays private.
+7. **The format moves on its own.** The claimset package (format rules, validator, lab record) changes often. The portal and the registry work with whatever claimset they are given, at least a minimum version and with no upper bound, so a claimset release needs no change to either. On the server, the app installs the newest claimset each time it starts (`deploy/start.sh`), so updating claimset is a restart, not a rebuild. The registry's check installs the current portal and the newest claimset on each run. The portal's CI runs daily against the newest claimset, so a claimset change the portal cannot work with is seen the same day. Each version's `validation.json` records the validator that checked it.
 
 ## 3. Architecture
 
@@ -125,7 +126,7 @@ The platform assigns each version the OpenAlex subfield and 1–3 topics (claims
 | Check | When | Cost |
 |---|---|---|
 | Package limits, validator, deterministic screening | Synchronously, on every submission | CPU only |
-| `portal check` on the registry PR: only one new version folder added and nothing changed or deleted (append-only); identifier, folder and version consistent (next version, `previous_version`); validator in published-file mode; deterministic screening; lab record hash chain (lab record §6) | On the registry PR, by the registry's GitHub Actions, which install the portal at a pinned commit | CPU only |
+| `portal check` on the registry PR: only one new version folder added and nothing changed or deleted (append-only); identifier, folder and version consistent (next version, `previous_version`); validator in published-file mode; deterministic screening; lab record hash chain (lab record §6) | On the registry PR, by the registry's GitHub Actions, which install the current portal and the newest claimset | CPU only |
 | LLM screening | On the registry PR, so only after consent | Built but off in v1: a provider is chosen before launch. A small model; on the order of cents per claimset |
 
 **Safe-ingest screening (PLT-18).** Every free-text field is screened for content addressed to reading models, since EntryLib exists to place submitted text in other models' contexts.

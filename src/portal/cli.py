@@ -43,6 +43,14 @@ def main(argv=None):
     chk.add_argument("--registry", default=".", help="the registry checkout, at the pull request's head")
     chk.add_argument("--base", default="origin/main", help="what the pull request is merged into")
     args = parser.parse_args(argv)
+    import claimset
+
+    from . import MIN_CLAIMSET, claimset_ok
+    if not claimset_ok(claimset.__version__):
+        print(f"portal: claimset {claimset.__version__} is older than {MIN_CLAIMSET}, the oldest the portal works "
+              f"with; update it: pip install --upgrade 'claimset @ git+https://github.com/entrylib/claimset'",
+              file=sys.stderr)
+        return 2
     if args.command == "check":
         return _check(args)
     settings = Settings.from_env()

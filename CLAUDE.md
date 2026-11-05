@@ -2,7 +2,7 @@
 
 - `docs/design-v1.md` is the design. Change it first when a change departs from it.
 - The claimset format's rules belong to the `claimset` package (github.com/entrylib/claimset). Call it; never reimplement validation, rendering, verifiability or patches here. If the portal needs a rule the package lacks, add it to the package.
-- The `claimset` dependency is pinned to a commit in `pyproject.toml`. Move the pin deliberately, in its own commit, and say which spec version the portal then accepts.
+- The `claimset` dependency is not pinned: the portal works with whatever claimset it is given, at least `MIN_CLAIMSET` (`src/portal/__init__.py`), with no upper bound. Raise `MIN_CLAIMSET` only when the portal starts using something newer from the package. A claimset release must not need a portal change.
 - Python 3.12+. Keep dependencies few; discuss before adding one.
 - Database changes are new files in `src/portal/migrations/` (`NNNN_description.sql`). Never edit a merged migration.
 - Secrets live in the environment only. Never commit `.env`, keys, tokens or passwords.

@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Daily, against the newest claimset (which is not pinned), so that a claimset change the portal cannot work
+  # with shows up the same day.
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: read
