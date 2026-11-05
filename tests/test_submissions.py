@@ -6,8 +6,8 @@ import pytest
 from claimset.package import build
 from test_publish import example
 
-from claimset_portal import submissions
-from claimset_portal.screening import screen
+from portal import submissions
+from portal.screening import screen
 
 ZIP = {"Content-Type": "application/zip"}
 JSON = {"Content-Type": "application/json"}
@@ -168,7 +168,7 @@ def test_correction_must_name_a_published_claimset(client):
 
 
 def test_pending_submissions_per_address_are_capped(settings, database_url):
-    from claimset_portal.db import migrate
+    from portal.db import migrate
     migrate(database_url)
     with psycopg.connect(database_url, autocommit=True) as conn:
         for _ in range(submissions.MAX_PENDING_PER_IP):

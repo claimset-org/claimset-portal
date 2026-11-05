@@ -8,9 +8,10 @@ registry clone directly.
 import logging
 from pathlib import Path
 
+from .classify import ClassifierError
 from .publish import PublishError, publish
 
-log = logging.getLogger("claimset_portal")
+log = logging.getLogger("portal")
 
 
 #: One publisher at a time across the app's threads and processes (a PostgreSQL advisory lock).
@@ -47,8 +48,12 @@ def _publish_all(conn, *, settings, registry, store, classifier):
             path.unlink(missing_ok=True)
             done.append((sid, None))
             continue
+        except ClassifierError as exc:
+            # Expected while the classifier is down or starting: one line, no traceback; the next round retries.
+            log.warning("publishing %s waits for the classifier (%s); will retry", sid, exc)
+            continue
         except Exception:
-            # The classifier or the registry is unavailable: leave it confirmed, the next round retries.
+            # Anything else (the registry, the file store) is unexpected: log it in full; the next round retries.
             log.exception("publishing %s failed; will retry", sid)
             continue
         published = f"{concept}@v{version}"

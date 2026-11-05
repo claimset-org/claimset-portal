@@ -23,7 +23,7 @@ from .config import Settings
 from .db import make_pool
 from .orcid import OrcidClient, OrcidError
 
-log = logging.getLogger("claimset_portal")
+log = logging.getLogger("portal")
 
 #: How often pending submissions past their consent window are deleted.
 EXPIRY_INTERVAL_SECONDS = 600
@@ -136,7 +136,7 @@ def create_app(settings=None, pool=None, run_expiry=True, orcid=None, publisher=
 
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
     def home():
-        return (resources.files("claimset_portal") / "static" / "index.html").read_text(encoding="utf-8")
+        return (resources.files("portal") / "static" / "index.html").read_text(encoding="utf-8")
 
     @app.post("/api/validate", tags=["submissions"])
     async def validate(request: Request):

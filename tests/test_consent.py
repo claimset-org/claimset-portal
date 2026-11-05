@@ -7,12 +7,12 @@ import pytest
 from fastapi.testclient import TestClient
 from test_publish import example, fake_classifier
 
-from claimset_portal import consent
-from claimset_portal.app import create_app
-from claimset_portal.db import make_pool, migrate
-from claimset_portal.orcid import OrcidError
-from claimset_portal.registry import Registry
-from claimset_portal.storage import FileStore
+from portal import consent
+from portal.app import create_app
+from portal.db import make_pool, migrate
+from portal.orcid import OrcidError
+from portal.registry import Registry
+from portal.storage import FileStore
 
 GUARANTOR = "0000-0000-0000-0000"                    # the guarantor of the example claimset
 
@@ -118,7 +118,7 @@ def test_unknown_link_and_failed_signin(app_client):
 
 
 def test_expired_submission_cannot_be_confirmed(app_client, settings):
-    from claimset_portal import submissions
+    from portal import submissions
     out, token = submit(app_client)
     with psycopg.connect(settings.database_url, autocommit=True) as conn:
         submissions.expire(conn, settings.submissions_dir, now=dt.datetime.now(dt.UTC) + dt.timedelta(hours=49))
@@ -173,5 +173,34 @@ def test_signin_is_unavailable_without_orcid_credentials(settings):
         with TestClient(create_app(settings, pool=pool, run_expiry=False), follow_redirects=False) as c:
             _, token = submit(c)
             assert c.get(f"/consent/{token}/start").status_code == 503
+    finally:
+        pool.close()
+
+
+def test_the_worker_waits_quietly_for_the_classifier(settings, caplog):
+    import logging
+
+    from portal import worker
+    from portal.classify import ClassifierError
+    migrate(settings.database_url)
+    pool = make_pool(settings.database_url, min_size=1, max_size=3)
+    pool.open()
+
+    def down(doc):
+        raise ClassifierError("classifier unavailable: connection refused")
+    publisher = {"registry": Registry(settings.registry_dir).init(),
+                 "store": FileStore(settings.published_dir, settings.base_url), "classifier": down}
+    try:
+        with TestClient(create_app(settings, pool=pool, run_expiry=False, orcid=FakeOrcid(), publisher=publisher),
+                        follow_redirects=False) as c:
+            out, token = submit(c)
+            with caplog.at_level(logging.WARNING, logger="portal"):
+                assert "published shortly" in sign_in(c, token).text
+            assert c.get(f"/api/submissions/{out['id']}").json()["state"] == "confirmed"
+            waits = [r for r in caplog.records if "waits for the classifier" in r.getMessage()]
+            assert waits and all(r.exc_info is None for r in waits)
+            with pool.connection() as conn:
+                assert worker.publish_confirmed(conn, settings=settings, **{**publisher,
+                                                "classifier": fake_classifier})[0][1].startswith("entrylib:2026.000001")
     finally:
         pool.close()
