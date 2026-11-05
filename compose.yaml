@@ -59,6 +59,7 @@ services:
       - published:/srv/published
       - registry:/srv/registry
       - submissions:/srv/submissions
+      - claimset:/home/portal/.local          # the claimset updated at each start (deploy/start.sh)
     secrets:
       - github_app_key
 
@@ -89,5 +90,6 @@ volumes:
   published:
   registry:
   submissions:
+  claimset:
   caddy_data:
   caddy_config:
