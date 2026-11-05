@@ -253,3 +253,18 @@ def test_archive_repositories_and_failure():
     seen = []
     archive.archive_version(doc, "https://github.com/entrylib/registry", save_fn=lambda u: seen.append(u))
     assert seen[0] == "https://github.com/entrylib/registry" and len(seen) == 3
+
+
+def test_open_pull_requests_count_towards_the_weekly_limit(world):
+    from portal import consent
+    w = world
+    for _ in range(consent.MAX_NEW_PER_WEEK):
+        assert status(w, submit_and_confirm(w["client"]))["state"] == "publishing"
+    r = w["client"].post("/api/submissions", content=json.dumps(example()).encode(),
+                         headers={"Content-Type": "application/json"})
+    token = r.json()["consent"][0]["consent_url"].rsplit("/", 1)[-1]
+    state = urllib.parse.parse_qs(urllib.parse.urlparse(
+        w["client"].get(f"/consent/{token}/start").headers["location"]).query)["state"][0]
+    page = w["client"].get("/consent/callback", params={"state": state, "code": GUARANTOR})
+    assert page.status_code == 429 and "seven days" in page.text
+    assert status(w, r.json()["id"])["state"] == "pending"
