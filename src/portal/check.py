@@ -2,10 +2,10 @@
 
 A pull request either publishes one version or maintains the repository, never both:
 
-- **Publication**: adds exactly one folder `<claimset folder>/v<n>/` holding `claimset.json`, `validation.json` and
-  optionally `lab.jsonl`, and changes nothing else. The version must be the claimset's next, its file must be a
-  valid published file whose identifier names the folder, it must pass the deterministic screening, and its lab
-  record must verify.
+- **Publication**: adds exactly one folder `<year>/<block>/<name>/v<n>/` (revision spec §2.4) holding
+  `claimset.json`, `validation.json` and optionally `lab.jsonl`, and changes nothing else. The version must be
+  the claimset's next, its file must be a valid published file whose identifier names the folder, it must pass the
+  deterministic screening, and its lab record must verify.
 - **Maintenance**: changes only the repository's own files (README, LICENSE, `.github/`), and no claimset.
 
 A published file is never modified or deleted: any pull request that touches an existing version fails.
@@ -26,7 +26,7 @@ from .screening import SCREENING_VERSION, screen
 VERSION_FILES = {"claimset.json", "validation.json", "lab.jsonl"}
 REQUIRED_FILES = {"claimset.json", "validation.json"}
 REPOSITORY_FILES = re.compile(r"^(?:README\.md|LICENSE|NOTICE|\.gitignore|\.gitattributes|\.github/.+)$")
-VERSION_PATH = re.compile(r"^(?P<folder>[^/]+)/v(?P<n>[1-9]\d*)/(?P<name>[^/]+)$")
+VERSION_PATH = re.compile(r"^(?P<folder>\d{4}/\d{3,}/[^/]+)/v(?P<n>[1-9]\d*)/(?P<name>[^/]+)$")
 
 
 @dataclass
@@ -94,7 +94,7 @@ def check(repo, base):
         for _, p in other:
             if not REPOSITORY_FILES.match(p):
                 r.fail("maintenance", f"{p} is not a repository file (README, LICENSE, .github/); claimsets are "
-                                      f"published only as <folder>/v<n>/")
+                                      f"published only as <year>/<block>/<name>/v<n>/")
         r.notes.append("maintenance pull request: no claimset changed")
         return r
 

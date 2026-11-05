@@ -12,7 +12,7 @@ from portal.check import check
 from portal.registry import Registry, dump
 
 CONCEPT = "entrylib:2026.000001"
-FOLDER = "entrylib_2026.000001"
+FOLDER = "2026/000/entrylib_2026.000001"
 
 
 def published(version=1, concept=CONCEPT):
@@ -80,7 +80,7 @@ def problems(r):
 
 
 def test_a_new_claimset_passes(repo):
-    add_version(repo, "entrylib_2026.000002", 1, version_files(published(concept="entrylib:2026.000002")))
+    add_version(repo, "2026/000/entrylib_2026.000002", 1, version_files(published(concept="entrylib:2026.000002")))
     r = check(repo.path, "main")
     assert r.ok, r.problems
     assert (r.kind, r.published) == ("publication", "entrylib:2026.000002@v1")
@@ -95,7 +95,7 @@ def test_a_correction_passes(repo):
 
 def test_a_lab_record_is_verified(repo, tmp_path):
     good = lab_record(tmp_path)
-    add_version(repo, "entrylib_2026.000002", 1,
+    add_version(repo, "2026/000/entrylib_2026.000002", 1,
                 version_files(published(concept="entrylib:2026.000002"), lab=good))
     r = check(repo.path, "main")
     assert r.ok and any("hash chain verified" in n for n in r.notes), (r.problems, r.notes)
@@ -106,7 +106,7 @@ def test_a_broken_lab_record_fails(repo, tmp_path):
     event = json.loads(lines[1])
     event["body"]["name"] = "Someone Else"                              # edited after the fact
     lines[1] = json.dumps(event)
-    add_version(repo, "entrylib_2026.000002", 1,
+    add_version(repo, "2026/000/entrylib_2026.000002", 1,
                 version_files(published(concept="entrylib:2026.000002"), lab="\n".join(lines) + "\n"))
     r = check(repo.path, "main")
     assert not r.ok and any(c.startswith("lab record") for c in problems(r))
@@ -126,20 +126,31 @@ def test_a_published_version_is_never_deleted(repo):
 
 
 def test_one_version_per_pull_request(repo):
-    add_version(repo, "entrylib_2026.000002", 1, version_files(published(concept="entrylib:2026.000002")))
-    add_version(repo, "entrylib_2026.000003", 1, version_files(published(concept="entrylib:2026.000003")))
+    add_version(repo, "2026/000/entrylib_2026.000002", 1, version_files(published(concept="entrylib:2026.000002")))
+    add_version(repo, "2026/000/entrylib_2026.000003", 1, version_files(published(concept="entrylib:2026.000003")))
     assert "scope" in problems(check(repo.path, "main"))
 
 
 def test_a_publication_changes_nothing_else(repo):
-    add_version(repo, "entrylib_2026.000002", 1, version_files(published(concept="entrylib:2026.000002")))
+    add_version(repo, "2026/000/entrylib_2026.000002", 1, version_files(published(concept="entrylib:2026.000002")))
     commit(repo, {"README.md": "Changed\n"})
     assert "scope" in problems(check(repo.path, "main"))
 
 
 def test_the_identifier_must_name_the_folder(repo):
-    add_version(repo, "entrylib_2026.000002", 1, version_files(published(concept="entrylib:2026.000009")))
+    add_version(repo, "2026/000/entrylib_2026.000002", 1, version_files(published(concept="entrylib:2026.000009")))
     assert "identifier" in problems(check(repo.path, "main"))
+
+
+def test_a_version_must_be_in_its_year_and_block(repo):
+    doc = published(concept="entrylib:2026.000002")
+    add_version(repo, "2026/001/entrylib_2026.000002", 1, version_files(doc))        # wrong block
+    assert "identifier" in problems(check(repo.path, "main"))
+
+
+def test_the_flat_layout_is_refused(repo):
+    add_version(repo, "entrylib_2026.000002", 1, version_files(published(concept="entrylib:2026.000002")))
+    assert "maintenance" in problems(check(repo.path, "main"))
 
 
 def test_versions_follow_in_order(repo):
@@ -156,21 +167,21 @@ def test_extra_and_missing_files(repo):
     files = version_files(published(concept="entrylib:2026.000002"))
     files["notes.txt"] = "x"
     del files["validation.json"]
-    add_version(repo, "entrylib_2026.000002", 1, files)
+    add_version(repo, "2026/000/entrylib_2026.000002", 1, files)
     assert problems(check(repo.path, "main")).count("files") == 2
 
 
 def test_an_invalid_file_fails_the_validator(repo):
     doc = published(concept="entrylib:2026.000002")
     doc["claims"][0]["support"] = []
-    add_version(repo, "entrylib_2026.000002", 1, version_files(doc))
+    add_version(repo, "2026/000/entrylib_2026.000002", 1, version_files(doc))
     assert "validator rule 2" in problems(check(repo.path, "main"))
 
 
 def test_screening_runs_on_the_published_file(repo):
     doc = published(concept="entrylib:2026.000002")
     doc["claims"][0]["statement"] += "‮"
-    add_version(repo, "entrylib_2026.000002", 1, version_files(doc))
+    add_version(repo, "2026/000/entrylib_2026.000002", 1, version_files(doc))
     assert "screening SI1" in problems(check(repo.path, "main"))
 
 
@@ -187,7 +198,7 @@ def test_maintenance_may_not_add_other_files(repo):
 
 def test_cli_exit_code_and_summary(repo, tmp_path, monkeypatch):
     from portal.cli import main
-    add_version(repo, "entrylib_2026.000002", 1, version_files(published(concept="entrylib:2026.000002")))
+    add_version(repo, "2026/000/entrylib_2026.000002", 1, version_files(published(concept="entrylib:2026.000002")))
     summary = tmp_path / "summary.md"
     monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
     assert main(["check", "--registry", str(repo.path), "--base", "main"]) == 0

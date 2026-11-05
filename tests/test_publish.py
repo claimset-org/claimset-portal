@@ -50,7 +50,7 @@ def test_publish_a_claimset_file(env):
     assert (concept, version) == ("entrylib:2026.000001", 1)
 
     reg = ctx["registry"]
-    doc = reg.read("entrylib_2026.000001", 1)
+    doc = reg.read("2026/000/entrylib_2026.000001", 1)
     assert validate(doc, published=True).errors == []
     p = doc["paper"]
     assert (p["id"], p["version"], p["status"], p["date"]) == (concept, 1, "active", "2026-11-04")
@@ -58,7 +58,7 @@ def test_publish_a_claimset_file(env):
     assert p["classification"]["topics"] == ["openalex:T10001", "openalex:T10002"]
     assert all("verifiability" in c for c in doc["claims"])
     assert "entrylib_2026.000001-v1" in reg.git("tag").split()
-    assert reg.read("entrylib_2026.000001", 1, "validation.json")["classifier"] == "fake-classifier@1"
+    assert reg.read("2026/000/entrylib_2026.000001", 1, "validation.json")["classifier"] == "fake-classifier@1"
 
     out = ctx["published_dir"]
     assert json.loads((out / "p" / "2026.000001.json").read_text())["paper"]["id"] == concept
@@ -99,12 +99,12 @@ def test_publish_a_package_with_files_and_a_lab_record(env):
     build(src, tmp / "paper.zip")
     concept, _ = publish(tmp / "paper.zip", **ctx)
 
-    published = ctx["registry"].read("entrylib_2026.000001", 1)
+    published = ctx["registry"].read("2026/000/entrylib_2026.000001", 1)
     by_id = {a["id"]: a for a in published["artefacts"]}
     digest = by_id["A3"]["version"].removeprefix("sha256:")
     assert by_id["A3"]["uri"] == f"{BASE}/files/{digest}"
     assert (ctx["published_dir"] / "files" / digest).read_bytes() == b"image bytes"
-    lab = ctx["registry"].version_dir("entrylib_2026.000001", 1) / "lab.jsonl"
+    lab = ctx["registry"].version_dir("2026/000/entrylib_2026.000001", 1) / "lab.jsonl"
     assert lab.read_text() == '{"seq": 1}\n'
     versions = json.loads((ctx["published_dir"] / "p" / "2026.000001" / "versions.json").read_text())
     assert versions["versions"][0]["lab_record"]["copy"] == f"{BASE}/p/2026.000001/v1/lab.jsonl"
@@ -142,7 +142,7 @@ def test_correction(env):
     concept2, version = publish(write(tmp, doc, "fixed.claimset.json"), **{**ctx, "today": dt.date(2026, 11, 5)})
     assert (concept2, version) == (concept, 2)
 
-    v2 = ctx["registry"].read("entrylib_2026.000001", 2)
+    v2 = ctx["registry"].read("2026/000/entrylib_2026.000001", 2)
     assert validate(v2, published=True).errors == []
     p = v2["paper"]
     assert (p["status"], p["previous_version"], p["date"]) == ("corrected", f"{concept}@v1", "2026-11-05")
@@ -181,7 +181,7 @@ def test_reindex_rebuilds_everything_from_the_registry(env):
     (ctx["published_dir"] / "p" / "2026.000001.json").unlink()
 
     folders = reindex(conn, ctx["registry"], ctx["published_dir"], BASE)
-    assert folders == ["entrylib_2026.000001", "entrylib_2026.000002"]
+    assert folders == ["2026/000/entrylib_2026.000001", "2026/000/entrylib_2026.000002"]
     assert conn.execute("SELECT concept_id, current_version, title FROM papers ORDER BY 1").fetchall() == before
     assert (ctx["published_dir"] / "index.jsonl").read_text() == index_before
     assert (ctx["published_dir"] / "p" / "2026.000001.json").exists()
@@ -201,10 +201,10 @@ def test_classifier_input_uses_title_and_principal_claims():
 def test_registry_never_rewrites_a_version(tmp_path):
     from portal.registry import RegistryError
     reg = Registry(tmp_path / "r").init()
-    reg.write_version("entrylib_2026.000001", 1, {"claimset.json": "{}\n"}, "first")
+    reg.write_version("2026/000/entrylib_2026.000001", 1, {"claimset.json": "{}\n"}, "first")
     with pytest.raises(RegistryError):
-        reg.write_version("entrylib_2026.000001", 1, {"claimset.json": "{}\n"}, "again")
-    assert copy.copy(reg.versions("entrylib_2026.000001")) == [1]
+        reg.write_version("2026/000/entrylib_2026.000001", 1, {"claimset.json": "{}\n"}, "again")
+    assert copy.copy(reg.versions("2026/000/entrylib_2026.000001")) == [1]
 
 
 def test_a_classifier_outage_uses_up_no_identifiers(env):
@@ -219,3 +219,13 @@ def test_a_classifier_outage_uses_up_no_identifiers(env):
     assert ctx["conn"].execute("SELECT count(*) FROM id_counters").fetchone()[0] == 0
     concept, _ = publish(write(tmp, example()), **ctx)
     assert concept == "entrylib:2026.000001"
+
+
+def test_registry_folders_are_found_by_year_and_block(tmp_path):
+    reg = Registry(tmp_path / "reg").init()
+    for folder in ("2027/000/entrylib_2027.000001", "2026/001/entrylib_2026.001350", "2026/000/entrylib_2026.000002"):
+        reg.write_version(folder, 1, {"claimset.json": "{}\n"}, f"Publish {folder}")
+    (tmp_path / "reg" / "README.md").write_text("x\n")
+    assert reg.folders() == ["2026/000/entrylib_2026.000002", "2026/001/entrylib_2026.001350",
+                             "2027/000/entrylib_2027.000001"]
+    assert "entrylib_2026.001350-v1" in reg.git("tag").split()

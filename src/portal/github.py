@@ -3,8 +3,9 @@
     GitHubApp            the App's REST API access to the registry repository
     RemoteRegistry       a local clone of the registry that opens, settles and merges pull requests
 
-A version is pushed as the branch `publish/<folder>-v<n>`, checked by the registry's `portal check` workflow,
-squash-merged by the portal when the checks pass, and tagged `<folder>-v<n>` on the merge commit. A pull request
+A version is pushed as the branch `publish/<name>-v<n>`, checked by the registry's `portal check` workflow,
+squash-merged by the portal when the checks pass, and tagged `<name>-v<n>` on the merge commit (`<name>` being
+the last part of the claimset's folder, `entrylib_2026.000123`). A pull request
 whose checks fail is closed and its branch deleted; the identifier it carried is never given again.
 """
 
@@ -16,7 +17,7 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 
-from .registry import RegistryError
+from .registry import RegistryError, tag_name
 
 #: Check conclusions that let a pull request be merged.
 PASSING = {"success", "neutral", "skipped"}
@@ -173,7 +174,7 @@ class RemoteRegistry:
 
     @staticmethod
     def branch_of(prepared):
-        return f"publish/{prepared.folder}-v{prepared.version}"
+        return f"publish/{tag_name(prepared.folder, prepared.version)}"
 
     def open(self, prepared, body):
         """Push the prepared version as a branch from main and open its pull request. Idempotent: a branch or a
