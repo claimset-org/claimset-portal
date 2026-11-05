@@ -73,9 +73,9 @@ data/
    - Limits are applied here (§8): at most 2 new claimsets confirmed per guarantor in seven days, and 3 new versions of one claimset in a day. A confirmation over the limit is refused, and the submission stays pending until its window ends.
    - A correction is submitted by the guarantor of the current version: the API refuses one naming anyone else.
 5. All guarantors must confirm within **48 hours**. Otherwise the submission is deleted and never shown.
-6. On consent, the platform assigns the provisional ID, version, date and status, computes verifiability (PLT-14, PLT-22), and opens a pull request on the registry (§5). A publication worker does this at once and again on a ten-minute loop, so a confirmation is never lost to a restart or an unavailable classifier; one worker runs at a time (a database lock). Until the pull request flow arrives, it writes to the registry clone directly.
-7. The registry's checks run on the PR (§6). If they pass, the bot merges and tags; publication follows (§5.3). If they fail, the PR is closed with the reasons. The ID is not reused.
-8. `GET /api/submissions/{id}` reports the state at every step (`pending`, `confirmed`, `published`, `refused`, `expired`) and which guarantors have confirmed, never the content. The ID is unguessable; consent links are shown only in the response to the submission, and only their hashes are stored. Closed submissions are forgotten 14 days after their window ends.
+6. On consent, the platform classifies the claimset, assigns the provisional ID, version, date and status, computes verifiability (PLT-14, PLT-22), and opens a pull request on the registry (§5.3); the submission is `publishing`. A publication worker does this at once and again on a ten-minute loop, so a confirmation is never lost to a restart or an unavailable classifier or GitHub; one worker runs at a time (a database lock). The identifier is kept on the submission, so a retried round reuses it. One version of a claimset is in flight at a time: a second correction waits until the first is published. In local mode (development) the worker commits to a local registry clone instead.
+7. The registry's checks run on the PR (§6). If they pass, the portal squash-merges it and tags the merge commit; publication follows (§5.3). If they fail, the PR is closed with the reasons as a comment, its branch is deleted, and the submission is `refused` with the reasons. The ID is not reused.
+8. `GET /api/submissions/{id}` reports the state at every step (`pending`, `confirmed`, `publishing` with the link to its registry pull request, `published`, `refused`, `expired`) and which guarantors have confirmed, never the content. The ID is unguessable; consent links are shown only in the response to the submission, and only their hashes are stored. Closed submissions are forgotten 14 days after their window ends.
 
 A claimset has exactly one guarantor: the main author, the person to contact, a person with an ORCID iD, who submits it (claimset spec v0.36). So a submission has one consent link; the validator refuses a second guarantor and organisations in any position but conversion guarantor. The API takes native claimsets only: converted claimsets are published by the conversion service, whose conversion guarantor (a person or an organisation) answers for them.
 
@@ -98,7 +98,7 @@ The MCP server offers the same as `validate`, `submit` and `submission_status` t
 
 ### 5.1 Registry
 
-`entrylib/registry` holds the published record in the layout of revision spec §2.4. The folder name is the identifier with `doi:` removed and `:` and `/` replaced by `_` (revision spec v0.3): `entrylib_2026.000001/`. Files per version: `claimset.json`, `lab.jsonl` (when a lab record is packaged) and `validation.json` (the submission's warnings, the validator and the classifier that were used). Only the bot commits. The main branch is protected against force-pushes and deletion; every version is tagged.
+`entrylib/registry` holds the published record in the layout of revision spec §2.4. The folder name is the identifier with `doi:` removed and `:` and `/` replaced by `_` (revision spec v0.3): `entrylib_2026.000001/`. Files per version: `claimset.json`, `lab.jsonl` (when a lab record is packaged) and `validation.json` (the submission's warnings, the validator and the classifier that were used). Only the EntryLib GitHub App writes to it, through pull requests: one squash commit per version (`Publish entrylib:2026.000001@v1`), tagged `<folder>-v<n>`. The main branch is protected: no force-pushes or deletion, and changes only through pull requests whose `check` passes. The repository's own files (README, licence notice, workflow) change through maintenance pull requests, which the same check tells apart from publications.
 
 The registry holds the record documents only: claimset files, lab records, validation reports, and from v2 reviews, responses and resolutions. Artefacts are referenced by URL and hash. Rendered views are derived and are not committed.
 
@@ -108,11 +108,13 @@ Each version keeps three links to its lab record:
 
 1. **A copy** of `lab.jsonl` in the registry, which keeps the hash chain verifiable whatever happens elsewhere.
 2. **The author's repository URL pinned to a commit hash**, shown as the primary lab-notes link. Tags are recommended to authors but not relied on, since tags can be moved. Any public git host is accepted, and the link is optional.
-3. **A Software Heritage identifier (SWHID).** At publication the bot sends a save request for the author's repository; the archived snapshot, with its full history, survives deletion of the repository.
+3. **A Software Heritage identifier (SWHID).** At publication the portal sends save requests for the registry and for every repository on GitHub, GitLab or Codeberg that the version's artefacts link to; the archived snapshot, with its full history, survives deletion of the repository. Archiving happens later on Software Heritage's side, so v1 sends the requests and logs their answers; recording each SWHID in `versions.json` is left for later.
 
 ### 5.3 Publication
 
-On merge: the static files are generated (§7), the version is indexed for search, the Software Heritage request is sent, and the version becomes current. A new version moves the previous one to the history; every version stays retrievable.
+The portal keeps a clone of the registry whose `main` follows GitHub. For a confirmed submission it writes the version on the branch `publish/<folder>-v<n>`, pushes it as the GitHub App (the installation token goes to git in an HTTP header, never in a URL or command line), and opens the pull request. Each round of the worker then looks at the open pull requests: still checking, it waits; checks failed, it closes the pull request; checks passed, it squash-merges (only if the head is still the commit it pushed), tags the merge commit and updates its clone.
+
+On merge: the static files are generated (§7), the version is indexed for search, the Software Heritage requests are sent, and the version becomes current. A new version moves the previous one to the history; every version stays retrievable.
 
 ### 5.4 Classification
 
@@ -123,8 +125,8 @@ The platform assigns each version the OpenAlex subfield and 1–3 topics (claims
 | Check | When | Cost |
 |---|---|---|
 | Package limits, validator, deterministic screening | Synchronously, on every submission | CPU only |
-| Lab record hash chain (lab record §6) | On the registry PR | CPU only |
-| LLM screening | On the registry PR, so only after consent | A small model; on the order of cents per claimset |
+| `portal check` on the registry PR: only one new version folder added and nothing changed or deleted (append-only); identifier, folder and version consistent (next version, `previous_version`); validator in published-file mode; deterministic screening; lab record hash chain (lab record §6) | On the registry PR, by the registry's GitHub Actions, which install the portal at a pinned commit | CPU only |
+| LLM screening | On the registry PR, so only after consent | Built but off in v1: a provider is chosen before launch. A small model; on the order of cents per claimset |
 
 **Safe-ingest screening (PLT-18).** Every free-text field is screened for content addressed to reading models, since EntryLib exists to place submitted text in other models' contexts.
 
@@ -189,17 +191,17 @@ The one exception is legal: personal data, infringing or unlawful content. Such 
 
 - Secrets in environment variables, never in the repository. Dependabot on the portal repo.
 - Database reachable only from the app.
-- The bot's GitHub token is limited to the registry.
+- The portal acts on GitHub as the EntryLib GitHub App, installed on the registry only, with contents and pull requests write access. Its private key is a file given to the portal as a Docker secret; installation tokens last an hour.
 - The validator runs with time and memory limits; zips are unpacked with the limits of §4.1.
 - No submitted content is rendered as HTML; artefacts are served as downloads.
-- CI for registry PRs runs only on the bot's own branches, so the screening API key is never exposed to third-party code.
+- The registry's check runs on every pull request, but merges happen only through the App, and only for pull requests it opened. When the LLM screening is switched on, its API key must be given only to runs on the App's own branches, never to pull requests from forks.
 
 ## 11. Dependence on GitHub
 
 | Role | On GitHub | If GitHub fails |
 |---|---|---|
 | Authors | Not needed. Lab repositories may be on any public git host, or none | Unaffected |
-| Registry | Hosted on GitHub | Mirrored automatically to a second host and to Software Heritage; the portal keeps its own clone and continues serving |
+| Registry | Hosted on GitHub | Archived by Software Heritage at every publication; the portal keeps its own clone and continues serving. A live mirror on a second host is set up at launch (step 10) |
 | Checks | Run as GitHub Actions on the registry PR, for free compute and public logs | The checks are one container image (`portal check`); the portal runs it itself and commits to its own clone until GitHub returns or another host takes over |
 | Code | `entrylib/portal` | Mirrored like the registry |
 

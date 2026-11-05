@@ -57,15 +57,27 @@ def _error(status, message, errors=(), warnings=()):
 
 
 def _publisher(settings):
-    """The registry, file store and classifier publication uses."""
+    """What publication uses: {registry, store, classifier}, and in github mode {remote, archive} (design §5)."""
     from .classify import HttpClassifier
     from .registry import Registry
     from .storage import FileStore
-    registry = Registry(settings.registry_dir, settings.git_name, settings.git_email)
-    if not (settings.registry_dir / ".git").exists():
-        registry.init()
-    return {"registry": registry, "store": FileStore(settings.published_dir, settings.base_url),
-            "classifier": HttpClassifier(settings.classifier_url)}
+    out = {"store": FileStore(settings.published_dir, settings.base_url),
+           "classifier": HttpClassifier(settings.classifier_url)}
+    if settings.registry_mode == "github":
+        from .github import GitHubApp, RemoteRegistry, ensure_clone, load_private_key
+        if not (settings.github_app_id and (settings.github_app_private_key_file or settings.github_app_private_key)):
+            raise RuntimeError("PORTAL_REGISTRY_MODE=github needs GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY_FILE")
+        registry = ensure_clone(settings.registry_dir, settings.github_registry,
+                                lambda path: Registry(path, settings.git_name, settings.git_email))
+        gh = GitHubApp(settings.github_app_id, load_private_key(settings), settings.github_registry,
+                       api=settings.github_api)
+        out.update(registry=registry, remote=RemoteRegistry(registry, gh), archive=worker.default_archive(settings))
+    else:
+        registry = Registry(settings.registry_dir, settings.git_name, settings.git_email)
+        if not (settings.registry_dir / ".git").exists():
+            registry.init()
+        out["registry"] = registry
+    return out
 
 
 def create_app(settings=None, pool=None, run_expiry=True, orcid=None, publisher=None):
@@ -237,7 +249,8 @@ def create_app(settings=None, pool=None, run_expiry=True, orcid=None, publisher=
     def submission_status(sub_id: str):
         """The state of a submission: pending, confirmed, published (with its identifier), refused or expired."""
         with pool.connection() as conn:
-            out = submissions.status(conn, sub_id, settings.base_url)
+            out = submissions.status(conn, sub_id, settings.base_url,
+                                     settings.github_registry if settings.registry_mode == "github" else None)
         if out is None:
             return _error(404, "no such submission (submissions are forgotten 14 days after they close)")
         return out

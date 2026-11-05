@@ -5,10 +5,14 @@
     portal publish SUBMISSION      publish a validated submission (package or claimset file) directly,
                                             without consent: for administration and tests, never for authors
     portal reindex                 rebuild the database index and static files from the registry
+    portal check [--registry DIR] [--base REF]
+                                            the registry's checks on a pull request checked out at DIR (no database);
+                                            exit 1 if they fail
 """
 
 import argparse
 import json
+import os
 import sys
 
 from .config import Settings
@@ -35,7 +39,12 @@ def main(argv=None):
     pub = sub.add_parser("publish", help="publish a submission directly, without consent (administration, tests)")
     pub.add_argument("submission", help="a submission package (BagIt zip or folder) or a claimset file")
     sub.add_parser("reindex", help="rebuild the database index and static files from the registry")
+    chk = sub.add_parser("check", help="the registry's checks on a pull request (no database)")
+    chk.add_argument("--registry", default=".", help="the registry checkout, at the pull request's head")
+    chk.add_argument("--base", default="origin/main", help="what the pull request is merged into")
     args = parser.parse_args(argv)
+    if args.command == "check":
+        return _check(args)
     settings = Settings.from_env()
 
     applied = migrate(settings.database_url)
@@ -75,6 +84,18 @@ def main(argv=None):
     uvicorn.run(create_app(settings), host=args.host, port=args.port, proxy_headers=True,
                 forwarded_allow_ips="*")
     return 0
+
+
+def _check(args):
+    from .check import check
+    result = check(args.registry, args.base)
+    text = result.markdown()
+    print(text)
+    summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if summary:
+        with open(summary, "a", encoding="utf-8") as fh:
+            fh.write(text)
+    return 0 if result.ok else 1
 
 
 if __name__ == "__main__":

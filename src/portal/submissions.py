@@ -157,13 +157,14 @@ def receive(conn, upload, *, submissions_dir, base_url, client_ip=None, now=None
     return {**status(conn, sub_id, base_url), "consent": links, "report": result.as_json()}
 
 
-def status(conn, sub_id, base_url):
-    """What may be told about a submission to whoever holds its ID: its state, never its content."""
-    row = conn.execute("SELECT id, received, expires, state, kind, target, published_id, detail FROM submissions"
-                       " WHERE id = %s", (sub_id,)).fetchone()
+def status(conn, sub_id, base_url, registry_repo=None):
+    """What may be told about a submission to whoever holds its ID: its state, never its content. While it is
+    `publishing`, the registry pull request where its checks run (public)."""
+    row = conn.execute("SELECT id, received, expires, state, kind, target, published_id, detail, registry_pr"
+                       " FROM submissions WHERE id = %s", (sub_id,)).fetchone()
     if row is None:
         return None
-    sid, received, expires, state, kind, target, published, detail = row
+    sid, received, expires, state, kind, target, published, detail, pr = row
     people = conn.execute("SELECT orcid, confirmed IS NOT NULL FROM submission_guarantors WHERE submission_id = %s"
                           " ORDER BY orcid", (sid,)).fetchall()
     out = {"id": sid, "state": state, "kind": kind, "received": received.isoformat(), "expires": expires.isoformat(),
@@ -175,6 +176,8 @@ def status(conn, sub_id, base_url):
         out["published"] = published
     if detail:
         out["detail"] = detail
+    if pr and registry_repo:
+        out["registry_pull_request"] = f"https://github.com/{registry_repo}/pull/{pr}"
     return out
 
 

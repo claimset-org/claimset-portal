@@ -17,6 +17,8 @@ dependencies = [
   "fastapi>=0.115",
   "uvicorn[standard]>=0.30",
   "psycopg[binary,pool]>=3.2",
+  # GitHub App authentication (a JWT signed with the App's RSA key) for publishing through registry pull requests.
+  "pyjwt[crypto]>=2.8",
 ]
 
 [project.optional-dependencies]
