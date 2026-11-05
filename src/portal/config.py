@@ -29,6 +29,15 @@ class Settings:
     orcid_client_id: str = ""
     #: Secret: from the environment only.
     orcid_client_secret: str = field(default="", repr=False)
+    #: "local": publish straight to the local registry clone (development, tests). "github": publish through pull
+    #: requests on the registry repository, as the GitHub App (design §5).
+    registry_mode: str = "local"
+    github_registry: str = "entrylib/registry"
+    github_api: str = "https://api.github.com"
+    github_app_id: str = ""
+    #: The App's private key: a file path (preferred), or its PEM text. Secret.
+    github_app_private_key_file: str = ""
+    github_app_private_key: str = field(default="", repr=False)
 
     @classmethod
     def from_env(cls, env=None):
@@ -46,4 +55,10 @@ class Settings:
             orcid_base=env.get("ORCID_BASE", "https://sandbox.orcid.org").rstrip("/"),
             orcid_client_id=env.get("ORCID_CLIENT_ID", ""),
             orcid_client_secret=env.get("ORCID_CLIENT_SECRET", ""),
+            registry_mode=env.get("PORTAL_REGISTRY_MODE", "local"),
+            github_registry=env.get("GITHUB_REGISTRY", "entrylib/registry"),
+            github_api=env.get("GITHUB_API", "https://api.github.com").rstrip("/"),
+            github_app_id=env.get("GITHUB_APP_ID", ""),
+            github_app_private_key_file=env.get("GITHUB_APP_PRIVATE_KEY_FILE", ""),
+            github_app_private_key=env.get("GITHUB_APP_PRIVATE_KEY", ""),
         )

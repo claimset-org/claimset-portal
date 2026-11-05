@@ -32,6 +32,8 @@ def consent(ctx, start_url, status_url):
     state = ctx["state"]
     if state != "pending":
         texts = {"confirmed": "You have confirmed this claimset; it is being published.",
+                 "publishing": "You have confirmed this claimset. It is being checked in the public registry and "
+                               "will be published when the checks pass; the status link shows progress.",
                  "published": f"This claimset is published as {ctx.get('published')}.",
                  "refused": f"This submission could not be published: {ctx.get('detail') or ''}",
                  "expired": "This submission expired: it was not confirmed within 48 hours. The agent can submit "

@@ -49,12 +49,18 @@ services:
       PORTAL_GIT_NAME: ${PORTAL_GIT_NAME:-EntryLib}
       PORTAL_GIT_EMAIL: ${PORTAL_GIT_EMAIL:-registry@entrylib.org}
       ORCID_BASE: ${ORCID_BASE:-https://sandbox.orcid.org}
+      PORTAL_REGISTRY_MODE: ${PORTAL_REGISTRY_MODE:-local}
+      GITHUB_REGISTRY: ${GITHUB_REGISTRY:-entrylib/registry}
+      GITHUB_APP_ID: ${GITHUB_APP_ID:-}
+      GITHUB_APP_PRIVATE_KEY_FILE: /run/secrets/github_app_key
       ORCID_CLIENT_ID: ${ORCID_CLIENT_ID:-}
       ORCID_CLIENT_SECRET: ${ORCID_CLIENT_SECRET:-}
     volumes:
       - published:/srv/published
       - registry:/srv/registry
       - submissions:/srv/submissions
+    secrets:
+      - github_app_key
 
   caddy:
     image: caddy:2
@@ -73,6 +79,8 @@ services:
       - caddy_config:/config
 
 secrets:
+  github_app_key:
+    file: ${GITHUB_APP_PRIVATE_KEY_PATH:-/dev/null}   # the GitHub App private key (github mode); never committed
   openalex_api_key:
     environment: OPENALEX_API_KEY      # set in .env; used only when the classifier image is built
 

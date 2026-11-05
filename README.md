@@ -7,7 +7,7 @@ guarantors confirm them with ORCID, and the portal publishes them for agents to 
 The design of the first version is in [`docs/design-v1.md`](docs/design-v1.md). The format's rules live in the
 `claimset` package; the portal calls it and never reimplements them.
 
-**Status:** agents can submit (`POST /api/submissions`), the guarantor confirms with ORCID, and the claimset is published to the registry and indexed. Search, the MCP server and the registry pull request flow come next.
+**Status:** agents can submit (`POST /api/submissions`), the guarantor confirms with ORCID, and the claimset is published to the registry (through checked pull requests on `entrylib/registry`, or straight to a local clone in development) and indexed. Search and the MCP server come next.
 
 ## Run it locally
 

@@ -21,6 +21,7 @@ import datetime as dt
 import json
 import tempfile
 import zipfile
+from dataclasses import dataclass
 from pathlib import Path
 
 import claimset
@@ -35,6 +36,7 @@ from claimset.validate import (
 from . import ids
 from .indexer import index_version
 from .registry import dump
+from .screening import SCREENING_VERSION
 
 
 class PublishError(Exception):
@@ -72,8 +74,27 @@ def _errors(rep):
     return [{"rule": e["rule"], "where": e["where"], "message": e["message"]} for e in rep.errors]
 
 
-def publish(source, *, conn, registry, store, classifier, published_dir, base_url, today=None):
-    """Publish a submission. Returns (concept id, version). Raises PublishError if it cannot be published."""
+@dataclass
+class Prepared:
+    """A version ready for the registry: its documents and where they go."""
+    concept: str
+    version: int
+    folder: str
+    files: dict                         # {file name: text} for <folder>/v<version>/
+
+    @property
+    def published_id(self):
+        return f"{self.concept}@v{self.version}"
+
+    @property
+    def message(self):
+        return f"Publish {self.published_id}"
+
+
+def prepare(source, *, conn, registry, store, classifier, today=None, concept=None):
+    """Steps 1-5: the version's documents, from a submission. A new claimset gets the next identifier, or `concept`
+    when one was already given to this submission (a retried publication keeps its number). Raises PublishError if
+    the submission cannot be published, ClassifierError while the classifier is unavailable."""
     today = today or dt.date.today()
     rep = validate_path(str(source))
     if rep is None:
@@ -89,6 +110,7 @@ def publish(source, *, conn, registry, store, classifier, published_dir, base_ur
         paper = doc["paper"]
 
         # 2. identifier and version
+        previous = None
         if "id" in paper:
             concept = paper["id"]
             row = conn.execute("SELECT folder, current_version FROM papers WHERE concept_id = %s",
@@ -99,14 +121,13 @@ def publish(source, *, conn, registry, store, classifier, published_dir, base_ur
             previous = registry.read(folder, previous_n)
             version = previous_n + 1
         else:
-            concept = folder = previous = None
             version = 1
 
         # Classify before a new identifier is given out: the classifier is the step most likely to be unavailable,
         # and a number given out is never given again.
         cls = classifier(doc)
-        if concept is None:
-            concept = ids.allocate(conn, today.year)
+        if previous is None:
+            concept = concept or ids.allocate(conn, today.year)
             folder = ids.folder(concept)
 
         # 3. packaged files
@@ -152,16 +173,21 @@ def publish(source, *, conn, registry, store, classifier, published_dir, base_ur
             raise PublishError("the published file would not be valid; this is a fault of the portal",
                                _errors(check))
 
-        # 6. registry
-        validation = {"validator": f"claimset {claimset.__version__}", "spec": claimset.SPEC_VERSION,
-                      "submission": {"errors": [], "warnings": [{"rule": w["rule"], "where": w["where"],
-                                                                 "message": w["message"]} for w in rep.warnings]},
-                      "classifier": cls.classifier}
-        files = {"claimset.json": dump(published), "validation.json": dump(validation)}
-        if lab_copy is not None:
-            files["lab.jsonl"] = lab_copy
-        registry.write_version(folder, version, files, f"Publish {concept}@v{version}")
+    validation = {"validator": f"claimset {claimset.__version__}", "spec": claimset.SPEC_VERSION,
+                  "screening": SCREENING_VERSION,
+                  "submission": {"errors": [], "warnings": [{"rule": w["rule"], "where": w["where"],
+                                                             "message": w["message"]} for w in rep.warnings]},
+                  "classifier": cls.classifier}
+    files = {"claimset.json": dump(published), "validation.json": dump(validation)}
+    if lab_copy is not None:
+        files["lab.jsonl"] = lab_copy
+    return Prepared(concept, version, folder, files)
 
-    # 7. index
-    index_version(conn, registry, folder, version, published_dir, base_url)
-    return concept, version
+
+def publish(source, *, conn, registry, store, classifier, published_dir, base_url, today=None):
+    """Publish a submission straight to a local registry (local mode, and `portal publish`): prepare, commit and
+    tag, index. Returns (concept id, version). Raises PublishError if it cannot be published."""
+    prep = prepare(source, conn=conn, registry=registry, store=store, classifier=classifier, today=today)
+    registry.write_version(prep.folder, prep.version, prep.files, prep.message)
+    index_version(conn, registry, prep.folder, prep.version, published_dir, base_url)
+    return prep.concept, prep.version

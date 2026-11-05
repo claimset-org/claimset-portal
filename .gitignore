@@ -10,3 +10,5 @@ published/
 submissions/
 registry/
 local/
+secrets/
+*.pem
