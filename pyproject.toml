@@ -13,7 +13,7 @@ authors = [{name = "Claimset contributors"}]
 dependencies = [
   # The claimset package is the single source of the format's rules: the portal calls it, never reimplements it.
   # Pinned to a commit; move the pin forward deliberately, with the spec version the portal accepts.
-  "claimset @ git+https://github.com/entrylib/claimset@648a8a311827b2c0cf00ce46d0652f8dac0a0753",
+  "claimset @ git+https://github.com/entrylib/claimset@632c8f438e4588a63b5b613d5809b5fc78f91c4a",
   "fastapi>=0.115",
   "uvicorn[standard]>=0.30",
   "psycopg[binary,pool]>=3.2",
