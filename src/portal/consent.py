@@ -75,7 +75,7 @@ def _over_limit(conn, orcid, kind, target, now):
     if kind == "new":
         n = conn.execute(
             "SELECT count(*) FROM submission_guarantors g JOIN submissions s ON s.id = g.submission_id"
-            " WHERE g.orcid = %s AND s.kind = 'new' AND s.state IN ('confirmed', 'published')"
+            " WHERE g.orcid = %s AND s.kind = 'new' AND s.state IN ('confirmed', 'publishing', 'published')"
             " AND g.confirmed > %s", (orcid, now - dt.timedelta(days=7))).fetchone()[0]
         if n >= MAX_NEW_PER_WEEK:
             return f"you have confirmed {n} new claimsets in the last seven days, the most allowed; this one can be " \
@@ -83,7 +83,7 @@ def _over_limit(conn, orcid, kind, target, now):
     else:
         n = conn.execute(
             "SELECT count(*) FROM submission_guarantors g JOIN submissions s ON s.id = g.submission_id"
-            " WHERE s.target = %s AND s.state IN ('confirmed', 'published') AND g.confirmed > %s",
+            " WHERE s.target = %s AND s.state IN ('confirmed', 'publishing', 'published') AND g.confirmed > %s",
             (target, now - dt.timedelta(days=1))).fetchone()[0]
         if n >= MAX_VERSIONS_PER_DAY:
             return f"{target} already has {n} new versions confirmed in the last day, the most allowed"
