@@ -1,10 +1,10 @@
-"""`claimset-portal`: run the portal and its maintenance commands.
+"""`portal`: run the portal and its maintenance commands.
 
-    claimset-portal migrate                 apply database migrations
-    claimset-portal serve [--port 8000]     run the web app (after migrating)
-    claimset-portal publish SUBMISSION      publish a validated submission (package or claimset file) directly,
+    portal migrate                 apply database migrations
+    portal serve [--port 8000]     run the web app (after migrating)
+    portal publish SUBMISSION      publish a validated submission (package or claimset file) directly,
                                             without consent: for administration and tests, never for authors
-    claimset-portal reindex                 rebuild the database index and static files from the registry
+    portal reindex                 rebuild the database index and static files from the registry
 """
 
 import argparse
@@ -26,7 +26,7 @@ def _context(settings):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(prog="claimset-portal")
+    parser = argparse.ArgumentParser(prog="portal")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("migrate", help="apply database migrations")
     serve = sub.add_parser("serve", help="apply migrations, then run the web app")

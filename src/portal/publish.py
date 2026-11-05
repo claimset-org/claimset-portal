@@ -6,7 +6,8 @@
 registry pull request come in later steps; this is the part they all end in:
 
 1. validate the submission with the `claimset` package (rules of every file, submission rules, rules 70 and 77);
-2. a new claimset gets the next `entrylib:` identifier; a correction names an existing one (claimset spec §9);
+2. the claimset is classified; then a new claimset gets the next `entrylib:` identifier (only once the classifier
+   has answered, so an outage uses up no numbers), while a correction names an existing one (claimset spec §9);
 3. packaged files are stored by checksum and their relative `uri` replaced with the permanent URL;
 4. the platform's fields are added: identifier, version, date, status, classification, verifiability, and for a
    correction previous_version, changes and the status notice;
@@ -98,8 +99,15 @@ def publish(source, *, conn, registry, store, classifier, published_dir, base_ur
             previous = registry.read(folder, previous_n)
             version = previous_n + 1
         else:
+            concept = folder = previous = None
+            version = 1
+
+        # Classify before a new identifier is given out: the classifier is the step most likely to be unavailable,
+        # and a number given out is never given again.
+        cls = classifier(doc)
+        if concept is None:
             concept = ids.allocate(conn, today.year)
-            folder, previous, version = ids.folder(concept), None, 1
+            folder = ids.folder(concept)
 
         # 3. packaged files
         published = copy.deepcopy(doc)
@@ -114,7 +122,6 @@ def publish(source, *, conn, registry, store, classifier, published_dir, base_ur
                 a["version"] = f"sha256:{digest}"
 
         # 4. platform fields
-        cls = classifier(published)
         p = published["paper"]
         p["id"] = concept
         p["version"] = version

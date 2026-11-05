@@ -1,10 +1,10 @@
 import claimset
 from fastapi.testclient import TestClient
 
-from claimset_portal import __version__
-from claimset_portal.app import create_app
-from claimset_portal.config import Settings
-from claimset_portal.db import make_pool
+from portal import __version__
+from portal.app import create_app
+from portal.config import Settings
+from portal.db import make_pool
 
 
 def test_healthz(client):

@@ -1,6 +1,6 @@
 import psycopg
 
-from claimset_portal.db import migrate, migration_files
+from portal.db import migrate, migration_files
 
 
 def test_migration_files_are_numbered_in_order():
@@ -19,7 +19,7 @@ def test_migrate_applies_once(database_url):
 
 
 def test_settings_defaults():
-    from claimset_portal.config import Settings
+    from portal.config import Settings
     s = Settings.from_env({"PORTAL_BASE_URL": "https://example.org/"})
     assert s.base_url == "https://example.org"
     assert s.environment == "development"

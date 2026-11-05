@@ -5,8 +5,8 @@ import os
 import psycopg
 import pytest
 
-from claimset_portal.config import Settings
-from claimset_portal.db import make_pool, migrate
+from portal.config import Settings
+from portal.db import make_pool, migrate
 
 TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
 
@@ -32,7 +32,7 @@ def settings(database_url, tmp_path):
 def client(settings):
     from fastapi.testclient import TestClient
 
-    from claimset_portal.app import create_app
+    from portal.app import create_app
     migrate(settings.database_url)
     pool = make_pool(settings.database_url, min_size=1, max_size=2)
     pool.open()

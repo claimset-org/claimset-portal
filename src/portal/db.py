@@ -19,7 +19,7 @@ def make_pool(database_url, **kwargs):
 def migration_files():
     """[(version, name, sql)] in order."""
     out = []
-    for f in sorted((resources.files("claimset_portal") / "migrations").iterdir(), key=lambda f: f.name):
+    for f in sorted((resources.files("portal") / "migrations").iterdir(), key=lambda f: f.name):
         if f.name.endswith(".sql"):
             version = f.name.split("_", 1)[0]
             if not version.isdigit():

@@ -200,7 +200,7 @@ The one exception is legal: personal data, infringing or unlawful content. Such 
 |---|---|---|
 | Authors | Not needed. Lab repositories may be on any public git host, or none | Unaffected |
 | Registry | Hosted on GitHub | Mirrored automatically to a second host and to Software Heritage; the portal keeps its own clone and continues serving |
-| Checks | Run as GitHub Actions on the registry PR, for free compute and public logs | The checks are one container image (`claimset-portal check`); the portal runs it itself and commits to its own clone until GitHub returns or another host takes over |
+| Checks | Run as GitHub Actions on the registry PR, for free compute and public logs | The checks are one container image (`portal check`); the portal runs it itself and commits to its own clone until GitHub returns or another host takes over |
 | Code | `entrylib/portal` | Mirrored like the registry |
 
 GitHub is the place where the record is published and the checks are logged, not something the platform cannot run without.

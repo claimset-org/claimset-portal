@@ -7,12 +7,12 @@ import pytest
 from claimset.package import build
 from claimset.validate import validate
 
-from claimset_portal.classify import Classification, classifier_input
-from claimset_portal.db import migrate
-from claimset_portal.indexer import reindex
-from claimset_portal.publish import PublishError, publish
-from claimset_portal.registry import Registry
-from claimset_portal.storage import FileStore
+from portal.classify import Classification, classifier_input
+from portal.db import migrate
+from portal.indexer import reindex
+from portal.publish import PublishError, publish
+from portal.registry import Registry
+from portal.storage import FileStore
 
 BASE = "https://entrylib.test"
 TODAY = dt.date(2026, 11, 4)
@@ -199,9 +199,23 @@ def test_classifier_input_uses_title_and_principal_claims():
 
 
 def test_registry_never_rewrites_a_version(tmp_path):
-    from claimset_portal.registry import RegistryError
+    from portal.registry import RegistryError
     reg = Registry(tmp_path / "r").init()
     reg.write_version("entrylib_2026.000001", 1, {"claimset.json": "{}\n"}, "first")
     with pytest.raises(RegistryError):
         reg.write_version("entrylib_2026.000001", 1, {"claimset.json": "{}\n"}, "again")
     assert copy.copy(reg.versions("entrylib_2026.000001")) == [1]
+
+
+def test_a_classifier_outage_uses_up_no_identifiers(env):
+    from portal.classify import ClassifierError
+    ctx, tmp = env
+
+    def down(doc):
+        raise ClassifierError("classifier unavailable: connection refused")
+    for _ in range(3):
+        with pytest.raises(ClassifierError):
+            publish(write(tmp, example()), **{**ctx, "classifier": down})
+    assert ctx["conn"].execute("SELECT count(*) FROM id_counters").fetchone()[0] == 0
+    concept, _ = publish(write(tmp, example()), **ctx)
+    assert concept == "entrylib:2026.000001"
