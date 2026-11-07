@@ -1,6 +1,6 @@
 # EntryLib portal — v1 design (draft)
 
-Status: working draft · Date: 2026-11-04 · Companion to `platform/requirements.md`, the claimset specification (v0.37), the lab record specification (v0.15) and the revision specification (v0.5)
+Status: working draft · Date: 2026-11-07 · Companion to `platform/requirements.md`, the claimset specification (v0.39), the lab record specification (v0.20) and the revision specification (v0.6)
 
 This document fixes what the first version of the portal does, how it is built and what it leaves for later versions. Requirements are cited by their `PLT-` IDs.
 
@@ -15,6 +15,8 @@ This document fixes what the first version of the portal does, how it is built a
 | v5 | Claim graph, contradiction detection |
 
 v1 keeps room for v2: versions, the review folder of the registry and the review fields of responses exist from the start, empty.
+
+**Format extensions** (claimset spec §2.7) are written after v1 launches, beside the versions above; the portal needs no change for them, since it works with whatever claimset it is given. The field trials (claimset-eval, `claimset/trials/`) set the order: `preregistration`, `trial`, `wet-lab`, `synthesis`, `ecology-field`, `behavioural-experiment`, `particle-physics`, `archival`, then others as papers need them (claimset `spec/extensions/candidates.md`). Until an extension exists, a paper that needs it records what the core can hold.
 
 ## 2. Principles
 
